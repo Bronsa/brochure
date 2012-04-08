@@ -120,6 +120,3 @@
   (-set-validator! [this validator])
   (-get-validator [this])
   (-validate [this args]))
-
-(defprotocol ISettable
-  (-set! [this hval]))

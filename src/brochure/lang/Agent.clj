@@ -90,6 +90,19 @@
           (.set nested [])
           (count sends)))))
 
+(defprotocol ISettable
+  (-set! [this val]))
+
+(defprotocol IRestartable
+  (-restart [this new-state clear?]))
+
+(defprotocol IError
+  (-error [this])
+  (-error-mode [thi])
+  (-error-mode! [this k])
+  (-error-handler [this])
+  (-error-handler! [this f]))
+
 (deftype Agent [^:volatile-mutable state
                 ^AtomicReference aq ;;AtomicRefernce<ActionQueue> EMPTY in constructor
                 ^:volatile-mutable error-mode ;; :continue
@@ -97,4 +110,93 @@
                 ^:unsynchronized-mutable meta
                 ^:volatile-mutable validator
                 ^:volatile-mutable watches]
-  :mixin (merge ARef IEquivImpl IHashImpl))
+  :mixin (merge ARef IEquivImpl IHashImpl)
+
+  ISettable
+  (-set! [this new-state]
+    (-validate this new-state)
+    (when (not= state new-state)
+      (set! state new-state)
+      true))
+
+  IDeref
+  (-deref [_] state)
+
+  IError
+  (-error [_] (-> aq .get .error))
+  (-error-mode [_] error-mode)
+  (-error-mode! [_ k] (set! error-mode k))
+  (-error-handler [_] error-handler)
+  (-error-handler! [_ f] (set! error-handler f))
+
+  IRestartable
+  (^:synchronized -restart [this new-state clear?]
+    (when-not (-error this)
+      (throw (RuntimeException. "Agent does not need a restart")))
+    (-validate this new-state)
+    (if clear?
+      (.set aq (-empty (ActionQueue. nil nil))) ;; derp
+      (loop [restarted false prior nil]
+        (if-not restarted
+          (let [prior (.get aq)]
+            (recur (.compareAndSet aq prior (ActionQueue. (.q prior) nil)) prior))
+          (if (pos? (-> prior .q .count))
+            (.execute ^Action (-> prior .q .peek))))))
+    new-state))
+
+
+;; public Object dispatch(IFn fn, ISeq args, boolean solo) {
+;; 	Throwable error = getError();
+;; 	if(error != null)
+;; 		{
+;; 		throw Util.runtimeException("Agent is failed, needs restart", error);
+;; 		}
+;; 	Action action = new Action(this, fn, args, solo);
+;; 	dispatchAction(action);
+
+;; 	return this;
+;; }
+
+;; static void dispatchAction(Action action){
+;; 	LockingTransaction trans = LockingTransaction.getRunning();
+;; 	if(trans != null)
+;; 		trans.enqueue(action);
+;; 	else if(nested.get() != null)
+;; 		{
+;; 		nested.set(nested.get().cons(action));
+;; 		}
+;; 	else
+;; 		action.agent.enqueue(action);
+;; }
+
+;; void enqueue(Action action){
+;; 	boolean queued = false;
+;; 	ActionQueue prior = null;
+;; 	while(!queued)
+;; 		{
+;; 		prior = aq.get();
+;; 		queued = aq.compareAndSet(prior, new ActionQueue((IPersistentStack)prior.q.cons(action), prior.error));
+;; 		}
+
+;; 	if(prior.q.count() == 0 && prior.error == null)
+;; 		action.execute();
+;; }
+
+;; public int getQueueCount(){
+;; 	return aq.get().q.count();
+;; }
+
+;; static public int releasePendingSends(){
+;; 	IPersistentVector sends = nested.get();
+;; 	if(sends == null)
+;; 		return 0;
+;; 	for(int i=0;i<sends.count();i++)
+;; 		{
+;; 		Action a = (Action) sends.valAt(i);
+;; 		a.agent.enqueue(a);
+;; 		}
+;; 	nested.set(PersistentVector.EMPTY);
+;; 	return sends.count();
+;; }
+;; }
+
