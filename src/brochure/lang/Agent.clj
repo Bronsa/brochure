@@ -1,17 +1,10 @@
 (ns brochure.lang.Agent
-  (:require [brochure.lang.protocols :refer :all])
+  (:require [brochure.lang.protocols :refer :all]
+            [brochure.lang.implementations :refer :all])
   (:import java.util.concurrent.atomic.AtomicLong
            java.util.concurrent.Executors
-           java.util.concurrent.ThreadFactory))
-
-;; (deftype Agent [^:volatile-mutable state
-;;                 ^AtomicReference aq ;;AtomicRefernce<ActionQueue> EMPTY in constructor
-;;                 ^:volatile-mutable error-mode ;; :continue
-;;                 ^:volatile-mutable error-handler ;; nil
-;;                 ^:unsynchronized-mutable meta
-;;                 ^:volatile-mutable validator
-;;                 ^:volatile-mutable watches]
-;;   :mixin (merge ARef IEquivImpl IHashImpl))
+           java.util.concurrent.ThreadFactory
+           java.util.concurrent.atomic.AtomicReference))
 
 (deftype ActionQueue [q error]
   IEmptyableCollection
@@ -77,7 +70,7 @@
   (execute [this]
     (try (.execute (if solo? solo-executor pooled-executor) this)
       (catch Throwable error
-        (if-let [erro-handler (.error-handler agent)]
+        (if-let [error-handler (.error-handler agent)]
           (try (error-handler agent error)
             (catch Throwable _)))))))
 
@@ -88,7 +81,7 @@
       (.get nested) (.set nested (-> nested .get (cons action)))
       :else         (.enqueue (.agent action) action))))
 
-(defn release-pending-sends
+(defn release-pending-sends []
   (let [sends (.get nested)]
     (if-not sends
       0
@@ -96,3 +89,12 @@
             (.enqueue (.agent a) a))
           (.set nested [])
           (count sends)))))
+
+(deftype Agent [^:volatile-mutable state
+                ^AtomicReference aq ;;AtomicRefernce<ActionQueue> EMPTY in constructor
+                ^:volatile-mutable error-mode ;; :continue
+                ^:volatile-mutable error-handler ;; nil
+                ^:unsynchronized-mutable meta
+                ^:volatile-mutable validator
+                ^:volatile-mutable watches]
+  :mixin (merge ARef IEquivImpl IHashImpl))

@@ -36,3 +36,104 @@
 (def IHashImpl
   '{IHash
     [(-hash [this] (.hashCode this))]})
+
+(def ListImpl
+  '{java.util.List
+    [(contains [this o]
+       (boolean (some #{o} this)))
+     (containsAll [this c]
+       (every? (set c) this))
+     (get [this index] (nth this index)) ;; make sure nth impl doesnt depend on .get or WE'RE FUCKED
+     (indexOf [this o]
+       (loop [coll this i 0]
+         (if (seq coll)
+           (or (when (= o (first coll)) i)
+               (recur (next coll) (inc i)))
+           -1)))
+     (isEmpty [this]
+       (nil? (seq this)))
+     (iterator [this]
+       (SeqIterator. this))
+     (lastIndexOf [this o]
+       (.lastIndexOf (reify-seq this) o))
+     (listIterator [this]
+       (.listIterator (reify-seq this)))
+     (listIterator [this index]
+       (.listIterator (reify-seq this) index))
+     (size [this] (-count this))
+     (subList [this fromIndex toIndex]
+       (.subList (reify-seq this) fromIndex toIndex))
+     (toArray [this]
+       (let [o (object-array (-count this))]
+         (loop [curr (-seq this) i 0]
+           (when curr
+             (aset o i (-first curr))
+             (recur (next- curr) (inc i))))
+         o))
+     (toArray [this a]
+       (let [len (-count this)
+             o (if (> len (.length a))
+                 (java.lang.reflect.Array/newInstance (-> a .getClass .getComponentType) len)
+                 a)]
+         (loop [curr (-seq this) i 0]
+           (when curr
+             (aset o i (-first curr))
+             (recur (next- curr) (inc i))))
+         (when (< len (.lenght a))
+           (aset o len nil))
+         o))
+     (add [_ o]
+       (throw (UnsupportedOperationException.)))
+     (add [_ index element]
+       (throw (UnsupportedOperationException.)))
+     (addAll [_ c]
+       (throw (UnsupportedOperationException.)))
+     (addAll [_ index c]
+       (throw (UnsupportedOperationException.)))
+     (clear [_]
+       (throw (UnsupportedOperationException.)))
+     (remove [_ ^int index]
+       (throw (UnsupportedOperationException.)))
+     (^boolean remove [_ o]
+       (throw (UnsupportedOperationException.)))
+     (removeAll [_ c]
+       (throw (UnsupportedOperationException.)))
+     (retainAll [_ c]
+       (throw (UnsupportedOperationException.)))
+     (set [this index element]
+       (throw (UnsupportedOperationException.)))]})
+
+(def ASeq
+  (merge
+   '{ISeq [(-first [_] first)
+           (-rest [_] rest)]
+
+     ISequential nil
+
+     java.io.Serializable nil
+
+     IHash [(-hash [this]
+              (int
+               (reduce- #(+ (* 31 %)
+                            (hash- %2)) 1 this)))]
+
+     IEmptyableCollection
+     [(-empty [_] (->EmptyList))]
+
+     ISeqable
+     [(-seq [this] this)]
+
+     ICollection
+     [(-conj [this o]
+        (PersistentList. o this (inc (-count this)) meta))]
+
+     Object
+     [(hashCode [this]
+        (reduce- #(+ (* 31 %)
+                     (if %2 (.hashCode %2) 0)) 1 this))]
+     IMeta
+     [(-meta [_] meta)]}
+   ListImpl))
+
+
+(def ARef (merge IMetaImpl IWithMetaImpl IWatchableImpl))

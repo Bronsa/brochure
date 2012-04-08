@@ -1,67 +1,9 @@
 (ns brochure.lang.PersistentList
-  (:require [brochure.lang.protocols :refer :all]))
+  (:require [brochure.lang.protocols :refer :all]
+            [brochure.lang.implementations :refer :all]
+            [brochure.lang.utils :refer :all]))
 
-(declare ->Cons)
-
-(extend-type nil
-  ISeqable
-  (-seq [_] nil))
-
-(defn cons-
-  [x seq]
-  (->Cons x (-seq seq) nil))
-
-(defn next- [coll]
-  (-seq (-rest coll)))
-
-(defmacro doseq- [[n f] & body]
-  `(loop [s# (-seq ~f) ~n (-first s#)]
-     (if (-seq s#)
-       (do ~@body
-           (recur (-rest s#) (-first (-rest s#)))))))
-
-(defn reduce-
-  ([f coll]
-     (reduce- f (-first coll) (-rest coll)))
-  ([f init coll]
-     (loop [v init s (-first coll) r (next- coll)]
-       (if r
-         (recur (f v s) (-first r) (next- r))
-         (f v s)))))
-
-(defn every?- [pred coll]
-  (cond
-    (nil? (-seq coll)) true
-    (pred (-first coll)) (recur pred (next- coll))
-    :else false))
-
-(defn map-
-  ([f coll]
-     (when-let [s (-seq coll)]
-       (cons- (f (-first s))
-              (map- f (-rest s)))))
-  ([f coll & colls]
-     (letfn [(step [cs]
-               (let [ss (map seq cs)]
-                 (when (every? identity ss)
-                   (cons- (map first ss) (step (map rest ss))))))]
-       (map #(apply f %) (step (conj colls coll))))))
-
-(defn hash- [obj]
-  (if obj
-    (if (satisfies? IHash obj)
-      (-hash obj)
-      (.hashCode obj))
-    0))
-
-(def seqable-hash-code
-  (memoize
-   (fn [obj]
-     (reduce- #(+ (* 31 %)
-                  (if %2 (.hashCode %2) 0)) 1 obj))))
-
-(defn reify-seq [seq]
-  (java.util.Collections/unmodifiableList (java.util.ArrayList. seq)))
+(set! *unchecked-math* true) ;; we need this to overflow on -hash
 
 (deftype SeqIterator [^:unsynchronized-mutable seq]
   java.util.Iterator
@@ -74,104 +16,6 @@
       (throw (java.util.NoSuchElementException.))))
   (remove [_] (throw (java.util.NoSuchElementException.))))
 
-(def ListImpl
-  '{java.util.List
-    [(contains [this o]
-       (boolean (some #{o} this)))
-     (containsAll [this c]
-       (every? (set c) this))
-     (get [this index] (nth this index)) ;; make sure nth impl doesnt depend on .get or WE'RE FUCKED
-     (indexOf [this o]
-       (loop [coll this i 0]
-         (if (seq coll)
-           (or (when (= o (first coll)) i)
-               (recur (next coll) (inc i)))
-           -1)))
-     (isEmpty [this]
-       (nil? (seq this)))
-     (iterator [this]
-       (SeqIterator. this))
-     (lastIndexOf [this o]
-       (.lastIndexOf (reify-seq this) o))
-     (listIterator [this]
-       (.listIterator (reify-seq this)))
-     (listIterator [this index]
-       (.listIterator (reify-seq this) index))
-     (size [this] (-count this))
-     (subList [this fromIndex toIndex]
-       (.subList (reify-seq this) fromIndex toIndex))
-     (toArray [this]
-       (let [o (object-array (-count this))]
-         (loop [curr (-seq this) i 0]
-           (when curr
-             (aset o i (-first curr))
-             (recur (next- curr) (inc i))))
-         o))
-     (toArray [this a]
-       (let [len (-count this)
-             o (if (> len (.length a))
-                 (java.lang.reflect.Array/newInstance (-> a .getClass .getComponentType) len)
-                 a)]
-         (loop [curr (-seq this) i 0]
-           (when curr
-             (aset o i (-first curr))
-             (recur (next- curr) (inc i))))
-         (when (< len (.lenght a))
-           (aset o len nil))
-         o))
-     (add [_ o]
-       (throw (UnsupportedOperationException.)))
-     (add [_ index element]
-       (throw (UnsupportedOperationException.)))
-     (addAll [_ c]
-       (throw (UnsupportedOperationException.)))
-     (addAll [_ index c]
-       (throw (UnsupportedOperationException.)))
-     (clear [_]
-       (throw (UnsupportedOperationException.)))
-     (remove [_ ^int index]
-       (throw (UnsupportedOperationException.)))
-     (^boolean remove [_ o]
-       (throw (UnsupportedOperationException.)))
-     (removeAll [_ c]
-       (throw (UnsupportedOperationException.)))
-     (retainAll [_ c]
-       (throw (UnsupportedOperationException.)))
-     (set [this index element]
-       (throw (UnsupportedOperationException.)))]})
-
-(set! *unchecked-math* true) ;; we need this to overflow on -hash
-(def ASeq
-  (merge
-   '{ISeq [(-first [_] first)
-           (-rest [_] rest)]
-
-     ISequential nil
-
-     java.io.Serializable nil
-
-     IHash [(-hash [this]
-              (int
-               (reduce- #(+ (* 31 %)
-                            (hash- %2)) 1 this)))]
-
-     IEmptyableCollection
-     [(-empty [_] (->EmptyList))]
-
-     ISeqable
-     [(-seq [this] this)]
-
-     ICollection
-     [(-conj [this o]
-        (PersistentList. o this (inc (-count this)) meta))]
-
-     Object
-     [(hashCode [this]
-        (reduce- #(+ (* 31 %)
-                     (if %2 (.hashCode %2) 0)) 1 this))]
-     IMeta
-     [(-meta [_] meta)]}
-   ListImpl))
 
 (declare ->EmptyList)
 
@@ -197,11 +41,6 @@
 
   IWithMeta
   (-with-meta [_ new-meta] (Cons. meta first rest)))
-
-(defn equals? [a b]
-  (or (identical? a b)
-      (and (not (nil? a))
-           (.equals a b))))
 
 ;; (defn identical? [a b]) == java operator
 (deftype PersistentList [first rest count meta] ;rest is never nil

@@ -3,8 +3,6 @@
             [brochure.lang.implementations :refer :all])
   (:import java.util.concurrent.atomic.AtomicReference))
 
-(def ARef (merge IMetaImpl IWithMetaImpl IWatchableImpl))
-
 (deftype Atom [^AtomicReference state
                ^:unsynchronized-mutable meta
                ^:volatile-mutable validator
