@@ -112,8 +112,10 @@
   (-add-watch [this key f])
   (-remove-watch [this key]))
 
+(defprotocol IResettable
+  (-reset! [this new-value]))
+
 (defprotocol IAtomicallyMutable
-  (-reset! [this new-value])
   (-compare-and-set! [this old-value new-value]))
 
 (defprotocol IValidable

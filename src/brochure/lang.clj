@@ -8,8 +8,12 @@
                ^:volatile-mutable validator
                ^:volatile-mutable watches]
 
-  :mixin (merge ARef IEquivImpl IHashImpl)
-
+  I-IMeta-mutable
+  I-IWithMeta-mutable
+  I-IWatchable
+  I-IEquiv
+  I-IHash
+  
   IDeref
   (-deref [_] (.get state))
 
@@ -17,13 +21,15 @@
   (-pr-seq [this opts]
     (concat ["#<Atom: "] (-pr-seq state opts) [">"]))
 
-  IAtomicallyMutable
+  IResettable
   (-reset! [this new-value]
     (-validate this new-value)
     (let [old-value (-deref this)]
       (.set state new-value)
       (-notify-watches this old-value new-value)
       new-value))
+
+  IAtomicallyMutable
   (-compare-and-set! [this old-value new-value]
     (-validate this new-value)
     (when (.compareAndSet state old-value new-value)
