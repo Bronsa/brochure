@@ -19,33 +19,32 @@
 
 (declare ->EmptyList)
 
-;; this should be unnecessary, will remove this once we fix it on clojure
-(def ConsImpl
-  '{ISeq
-    [(-first [coll] first)
-     (-rest [coll] (if (nil? rest) (->EmptyList {}) rest))]
-
-    IEmptyableCollection
-
-    [(-empty [_] (with-meta (->EmptyList) meta))]
-
-    ICollection
-
-    [(-conj [coll o] (Cons. nil o coll))]
-
-    ICounted
-    [(-count [_] (inc (-count rest)))]})
-
 (deftype Cons [first rest meta]
-  :mixin (merge ASeq ConsImpl)
 
+  ASeq
+  I-List
+
+  ISeq
+  (-first [coll] first)
+  (-rest [coll] (if (nil? rest) (->EmptyList {}) rest))
+
+  IEmptyableCollection
+  (-empty [_] (with-meta (->EmptyList) meta))
+
+  ICollection
+  (-conj [coll o] (Cons. nil o coll))
+
+  ICounted
+  (-count [_] (inc (-count rest)))
+  
   IWithMeta
   (-with-meta [_ new-meta] (Cons. meta first rest)))
 
 ;; (defn identical? [a b]) == java operator
 (deftype PersistentList [first rest count meta] ;rest is never nil
 
-  :mixin ASeq
+  ASeq
+  I-List
 
   IPersistent
   IList
@@ -79,32 +78,31 @@
     (and (or (isa? ISequential o) (isa? java.util.List o))
          (every? true? (map equals? this o)))))
 
-(def ListImplEmpty
-  '{java.util.List
-    [(size [_] 0)
-     (isEmpty [_] true)
-     (contains [_ o] false)
-     (iterator [_]
-       (reify java.util.Iterator
-         (hasNext [_] false)
-         (next [_]
-           (throw (java.util.NoSuchElementException.)))
-         (remove [_]
-           (throw (UnsupportedOperationException.)))))
-     (toArray [_] (object-array 0))
-     (toArray [_ o]
-       (if (> (.length o) 0)
-         (aset o 0 nil))
-       o)]})
-
 (deftype EmptyList [meta]
 
-  :mixin (merge ListImpl ListImplEmpty)
-
+  I-List
+  
   IPersistent
   IList
   ISequential
 
+  java.util.List
+  (size [_] 0)
+  (isEmpty [_] true)
+  (contains [_ o] false)
+  (iterator [_]
+    (reify java.util.Iterator
+      (hasNext [_] false)
+      (next [_]
+        (throw (java.util.NoSuchElementException.)))
+      (remove [_]
+        (throw (UnsupportedOperationException.)))))
+  (toArray [_] (object-array 0))
+  (toArray [_ o]
+    (if (> (.length o) 0)
+      (aset o 0 nil))
+    o)
+  
   IWithMeta
   (-with-meta [this new-meta]
     (if (not= new-meta meta)
