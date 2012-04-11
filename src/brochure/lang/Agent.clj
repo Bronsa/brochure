@@ -60,7 +60,7 @@
   (run [this]
     (try
       (.set nested [])
-      (let [error (Atom. nil)]
+      (let [error (->Atom nil)]
         (try (let [old-value (-deref agent)
                    new-value (apply fn (-deref agent) args)]
                (-reset! agent new-value)
@@ -94,18 +94,18 @@
           (try (error-handler agent error)
             (catch Throwable _)))))))
 
-(defn dispatch [agent f args solo?]
-  (if-let [error (-error agent)]
-    (throw (RuntimeException. "Agent is failed, needs restart" error)))
-  (dispatch-action (Action. agent f args solo?))
-  agent)
-
 (defn dispatch-action [action]
   (let [trans (clojure.lang.LockingTransaction/getRunning)]
     (cond
       trans         (.enqueue trans action)
       (.get nested) (.set nested (-> nested .get (.cons action))) ;; -cons once we have our own datastructures
       :else         (-enqueue (.agent action) action))))
+
+(defn dispatch [agent f args solo?]
+  (if-let [error (-error agent)]
+    (throw (RuntimeException. "Agent is failed, needs restart" error)))
+  (dispatch-action (Action. agent f args solo?))
+  agent)
 
 (defn release-pending-sends []
   (if-let [sends (.get nested)]
@@ -164,11 +164,11 @@
   IEnqueueable
   (-enqueue [this action]
     (loop [queued false prior nil]
-      (when-not queued
+      (if-not queued
         (let [prior (.get action-queue)]
-          (recur (.compareAndSet action-queue prior (ActionQueue. (-> prior .queue (.cons action)) (.error prior))) prior)))
-      (if (and (zero? (-> prior .queue .count)) (nil? (.error prior)))
-        (.execute action)))))
+          (recur (.compareAndSet action-queue prior (ActionQueue. (-> prior .queue (.cons action)) (.error prior))) prior))
+        (if (and (zero? (-> prior .queue .count)) (nil? (.error prior)))
+          (.execute action))))))
 
 ;; (defn queue-count [agent]
 ;;   (-> agent .action-queue .get .queue .count))

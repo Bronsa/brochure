@@ -34,7 +34,7 @@
 
 (defimpl I-IHash
   IHash
-  [(-hash [this] (.hashCode this))])
+  (-hash [this] (.hashCode this)))
 
 (defimpl I-List
   java.util.List
@@ -102,14 +102,11 @@
   (set [this index element]
     (throw (UnsupportedOperationException.))))
 
-(defimpl ASeq ;; + ListImpl
+(defimpl ASeq
 
   ISeq
   (-first [_] first)
   (-rest [_] rest)
-
-  ISequential
-  java.io.Serializable
 
   IHash
   (-hash [this]

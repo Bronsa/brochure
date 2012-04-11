@@ -24,6 +24,10 @@
   ASeq
   I-List
 
+  ISequential 
+  java.io.Serializable
+
+  
   ISeq
   (-first [coll] first)
   (-rest [coll] (if (nil? rest) (->EmptyList {}) rest))
@@ -48,6 +52,8 @@
 
   IPersistent
   IList
+  ISequential 
+  java.io.Serializable
 
   IWithMeta
   (-with-meta [_ new-meta]
