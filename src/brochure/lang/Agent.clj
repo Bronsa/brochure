@@ -63,10 +63,10 @@
       (let [error (->Atom nil)]
         (try (let [old-value (-deref agent)
                    new-value (apply fn (-deref agent) args)]
-               (-reset! agent new-value)
+               (-set! agent new-value)
                (-notify-watches agent old-value new-value))
          (catch Throwable e
-           (-reset! error e)))
+           (-set! error e)))
         (if-not (-deref error)
           (release-pending-sends)
           (do (.set nested nil)
@@ -74,7 +74,7 @@
                 (try (error-handler agent error)
                      (catch Throwable _)))
               (if (= :continue (-error-mode agent))
-                (-reset! error nil))))
+                (-set! error nil))))
         (loop [popped false next nil]
           (if-not popped
             (let [prior (-> agent .aq .get)
@@ -129,8 +129,8 @@
   I-IEquiv
   I-IHash
   
-  IResettable
-  (-reset! [this new-state]
+  ISettable
+  (-set! [this new-state]
     (-validate this new-state)
     (when (not= state new-state)
       (set! state new-state)

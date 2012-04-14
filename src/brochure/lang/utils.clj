@@ -50,7 +50,7 @@
   `(loop [s# (-seq ~f) ~n (-first s#)]
      (if (-seq s#)
        (do ~@body
-           (recur (rest- s#) (-first (next- s#)))))))
+           (recur (rest- s#) (-first (rest- s#)))))))
 
 (defn reduce-
   ([f coll]

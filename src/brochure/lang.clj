@@ -23,15 +23,14 @@
   (-pr-seq [this opts]
     (concat ["#<Atom: "] (-pr-seq state opts) [">"]))
 
-  IResettable
+  IAtomicallyMutable
   (-reset! [this new-value]
     (-validate this new-value)
     (let [old-value (-deref this)]
       (.set state new-value)
       (-notify-watches this old-value new-value)
       new-value))
-
-  IAtomicallyMutable
+  
   (-compare-and-set! [this old-value new-value]
     (-validate this new-value)
     (when (.compareAndSet state old-value new-value)
@@ -116,7 +115,7 @@
         (if (= (-val state) state)
           (-val! state (.nextElement iter)))))
     (-val state))
-  (-rest [this]
+  (-next [this]
     (when (= (-rest state) state)
       (locking state
         (when (= (-rest state) state)

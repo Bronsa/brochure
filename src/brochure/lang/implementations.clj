@@ -5,7 +5,7 @@
   (^:synchronized -meta [_] meta))
 
 (defimpl I-IResetMeta
-  IWithMeta
+  IResetMeta
   (^:synchronized -reset-meta! [_ new-meta] (set! meta new-meta)))
 
 (defimpl I-IWatchable
@@ -67,7 +67,7 @@
       (loop [curr (-seq this) i 0]
         (when curr
           (aset o i (-first curr))
-          (recur (next- curr) (inc i))))
+          (recur (-next curr) (inc i))))
       o))
   (toArray [this a]
     (let [len (-count this)
@@ -77,7 +77,7 @@
       (loop [curr (-seq this) i 0]
         (when curr
           (aset o i (-first curr))
-          (recur (next- curr) (inc i))))
+          (recur (-next curr) (inc i))))
       (when (< len (.lenght a))
         (aset o len nil))
       o))
