@@ -4,9 +4,9 @@
   IMeta
   (^:synchronized -meta [_] meta))
 
-(defimpl I-IWithMeta-mutable
+(defimpl I-IResetMeta
   IWithMeta
-  (^:synchronized -with-meta [_ new-meta] (set! meta new-meta)))
+  (^:synchronized -reset-meta! [_ new-meta] (set! meta new-meta)))
 
 (defimpl I-IWatchable
   IWatchable
@@ -52,7 +52,7 @@
   (isEmpty [this]
     (nil? (seq this)))
   (iterator [this]
-    (SeqIterator. this))
+    (->SeqIterator this))
   (lastIndexOf [this o]
     (.lastIndexOf (reify-seq this) o))
   (listIterator [this]
@@ -106,7 +106,7 @@
 
   ISeq
   (-first [_] first)
-  (-rest [_] rest)
+  (-next [_] next)
 
   IHash
   (-hash [this]
@@ -120,7 +120,7 @@
 
   ICollection
   (-conj [this o]
-    (PersistentList. o this (inc (-count this)) meta))
+    (->PersistentList o this (inc (count- this)) meta))
 
   Object
   (hashCode [this]
@@ -131,3 +131,25 @@
 
 
 ;; (def ARef (merge IMetaImpl IWithMetaImpl IWatchableImpl))
+
+(defn throw-arity [this n]
+  (let [name (-> this .getClass .getSmpleName)
+        suffix (.lastIndexOf name "__")
+        elided-name (if (= suffix -1) name (.substring name 0 suffix))]
+    (throw (clojure.lang.ArityException. n (.replace elided-name \_ \-)))))
+
+(def AFn
+  ^:impl {'java.lang.Callable
+          '[(call [this] (-invoke this))]
+          'java.lang.Runnable
+          '[(run [this] (-invoke this))]
+          'IFn
+          (map (fn [args] (list '-invoke (vec (cons 'this args))
+                                (list 'throw-arity 'this (count args))))
+               (cons [] (take-while seq (iterate rest (repeat 18 '_)))))})
+
+(defmacro apply-to [f arglist]
+  (let [arglist-len (count arglist)] ;;inefficent
+    (if (< arglist-len 19)
+      `(-invoke ~f ~@arglist)
+      `(-invoke ~f ~@(take 19 arglist) '~(drop 19 arglist)))))

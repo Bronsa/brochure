@@ -31,10 +31,13 @@
 
 (defprotocol ISeq
   (-first [coll])
-  (-rest [coll]))
+  (-next [coll]))
+
+(defprotocol IIndexedSeq
+  (-index [seq]))
 
 (defprotocol ILookup
-  (-lookup [o k] [o k not-found]))
+  (-lookup [o k] [o k not-found])) ;;valAt in java
 
 (defprotocol IAssociative
   (-contains-key? [coll k])
@@ -52,7 +55,7 @@
   (-equiv [o other]))
 
 (defprotocol IHash
-  (-hash [o]))
+  (-hash [o])) ;; hasheq in java
 
 (defprotocol ISeqable
   (-seq [o]))
@@ -80,7 +83,10 @@
   (-meta [o]))
 
 (defprotocol IWithMeta
-  (-with-meta [o meta]))
+  (-with-meta [o new-meta]))
+
+(defprotocol IResetMeta
+  (-reset-meta! [o new-meta]))
 
 (defprotocol INamed
   (-name [o])

@@ -28,7 +28,7 @@
   (-empty [_] (ActionQueue. clojure.lang.PersistentQueue/EMPTY nil)))
 
 ;; (set! ActionQueue/empty ..)
-(def ActionQueue-empty
+(def empty-action-queue
   (ActionQueue. clojure.lang.PersistentQueue/EMPTY nil))
 
 (def send-thread-pool-counter (AtomicLong. 0))
@@ -124,7 +124,7 @@
                 ^:volatile-mutable watches]
 
   I-IMeta-mutable
-  I-IWithMeta-mutable
+  I-IResetMeta
   I-IWatchable
   I-IEquiv
   I-IHash
@@ -152,7 +152,7 @@
       (throw (RuntimeException. "Agent does not need a restart")))
     (-validate this new-state)
     (if clear?
-      (.set action-queue ActionQueue-empty)
+      (.set action-queue empty-action-queue)
       (loop [restarted false prior nil]
         (if-not restarted
           (let [prior (.get action-queue)]

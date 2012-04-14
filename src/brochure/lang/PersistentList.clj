@@ -11,7 +11,7 @@
   (next [_]
     (if seq
       (let [ret (-first seq)]
-        (set! seq (-seq (-rest seq)))
+        (set! seq (-next seq))
         ret)
       (throw (java.util.NoSuchElementException.))))
   (remove [_] (throw (java.util.NoSuchElementException.))))
@@ -19,19 +19,14 @@
 
 (declare ->EmptyList)
 
-(deftype Cons [first rest meta]
+(deftype Cons [first next meta]
 
   ASeq
   I-List
 
   ISequential 
   java.io.Serializable
-
   
-  ISeq
-  (-first [coll] first)
-  (-rest [coll] (if (nil? rest) (->EmptyList {}) rest))
-
   IEmptyableCollection
   (-empty [_] (with-meta (->EmptyList) meta))
 
@@ -39,13 +34,13 @@
   (-conj [coll o] (Cons. nil o coll))
 
   ICounted
-  (-count [_] (inc (-count rest)))
+  (-count [_] (inc (count- next)))
   
   IWithMeta
-  (-with-meta [_ new-meta] (Cons. meta first rest)))
+  (-with-meta [_ new-meta] (Cons. meta first next)))
 
 ;; (defn identical? [a b]) == java operator
-(deftype PersistentList [first rest count meta] ;rest is never nil
+(deftype PersistentList [first next count meta]
 
   ASeq
   I-List
@@ -57,11 +52,11 @@
 
   IWithMeta
   (-with-meta [_ new-meta]
-    (PersistentList. first rest new-meta count))
+    (PersistentList. first next new-meta count))
 
   IStack
   (-peek [_] first)
-  (-pop [_] rest)
+  (-pop [_] next)
 
   ICounted
   (-count [_] count)
@@ -120,7 +115,7 @@
 
   ISeq
   (-first [coll] nil)
-  (-rest [coll] nil)
+  (-next [coll] nil)
 
   IStack
   (-peek [coll] nil)

@@ -10,6 +10,9 @@
 (defn with-meta [x meta]
   (-with-meta x meta))
 
+(defn force [obj]
+  (if (satisfies? IPending obj) (-deref obj) obj))
+
 ;;etc etc
 
 (defn atom
