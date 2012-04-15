@@ -3,7 +3,8 @@
             [brochure.lang.implementations :refer :all]
             [brochure.lang.utils :refer :all]
             [brochure.lang.PersistentList :refer :all])
-  (:import java.util.concurrent.atomic.AtomicReference))
+  (:import java.util.concurrent.atomic.AtomicReference
+           brochure.lang.PersistentList.PersistentList))
 
 (deftype Atom [^AtomicReference state
                ^:unsynchronized-mutable meta

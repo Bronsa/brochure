@@ -99,20 +99,18 @@
                                                 (unchecked-int (hash- %2))) 1 this)))
 
   IEmptyableCollection
-  (-empty [_] (->EmptyList))
+  (-empty [_] empty-list)
 
   ISeqable
   (-seq [this] this)
-
-  ICollection
-  (-conj [this o]
-    (->PersistentList o this (inc (count- this)) meta))
 
   Object
   (hashCode [this]
     (reduce- #(unchecked-add-int (unchecked-int (* 31 %))
                                  (unchecked-int (if %2 (.hashCode %2) 0))) 1 this))
 
+  ;;lacks -equiv, equals count
+  
   IMeta
   (-meta [_] meta))
 

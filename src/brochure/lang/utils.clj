@@ -6,7 +6,6 @@
   (-seq [_] nil))
 
 (defn rest- [coll]
-  (require 'brochure.lang.PersistentList)
   (or (-next coll)
       ((resolve 'brochure.lang.PersistentList/->EmptyList) {}))) ;; HERP DERP
 
@@ -43,7 +42,6 @@
 
 (defn cons-
   [x seq]
-  (require 'brochure.lang.PersistentList) ;; herping the derp
   ((resolve 'brochure.lang.PersistentList/->Cons) x (-seq seq) nil))
 
 (defmacro doseq- [[n f] & body]
