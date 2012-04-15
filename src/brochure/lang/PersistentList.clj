@@ -171,7 +171,7 @@
              (doInvoke [args]
                (if (instance? clojure.lang.ArraySeq args)
                  (let [^objects argsarray (.array ^clojure.lang.ArraySeq args)]
-                   (loop [i (dec (java.lang.reflect.Array/getLength argsarray)) ret empty-list]
+                   (loop [i (dec (clojure.lang.RT/alength argsarray)) ret empty-list]
                      (if (pos? i)
                        (recur (dec i) (-conj ret (aget argsarray i)))
                        ret)))
