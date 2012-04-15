@@ -146,19 +146,9 @@
   ICounted
   (-count [_] count)
 
-  Object
-  (equals [this o]
-    (or (identical? this o)
-        (-equiv this o)))
-  
   ICollection
   (-conj [this o]
-    (PersistentList. o this (inc count) meta))
-  
-  IEquiv
-  (-equiv [this o]
-    (and (or (isa? ISequential o) (isa? java.util.List o))
-         (every? true? (map equals? this o)))))
+    (PersistentList. o this (inc count) meta)))
 
 (def list- (proxy [clojure.lang.RestFn] []
              (getRequiredArity [] 0)
