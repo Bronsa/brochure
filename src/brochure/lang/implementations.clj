@@ -95,8 +95,7 @@
 
   IHash
   (-hash [this]
-    (unchecked-int (reduce- #(unchecked-add-int (unchecked-int (* 31 %))
-                                                (unchecked-int (hash- %2))) 1 this)))
+    (.hashCode this))
 
   IEmptyableCollection
   (-empty [_] empty-list)
@@ -106,8 +105,29 @@
 
   Object
   (hashCode [this]
-    (reduce- #(unchecked-add-int (unchecked-int (* 31 %))
-                                 (unchecked-int (if %2 (.hashCode %2) 0))) 1 this))
+    (seqable-hash-code this))
+  
+  (equals [this obj]
+    (or (identical? this obj)
+        (and (or (instance? ISequential obj)
+                 (instance java.util.List obj))
+             (loop [ms (-seq obj) s (-seq this)]
+               (if-not (nil? ms)
+                 (if (not (and (nil? ms)
+                               (equals? (-first this) (-first ms))))
+                   (recur (-next ms) (-next s)))
+                 (nil? ms))))))
+
+  IEquiv
+  (-equiv [this obj]
+    (and (or (instance? ISequential obj)
+             (instance java.util.List obj))
+         (loop [ms (-seq obj) s (-seq this)]
+           (if-not (nil? ms)
+             (if (not (and (nil? ms)
+                           (equiv? (-first this) (-first ms))))
+               (recur (-next ms) (-next s)))
+             (nil? ms)))))
 
   ;;lacks -equiv, equals count
   

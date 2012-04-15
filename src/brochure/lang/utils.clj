@@ -33,8 +33,9 @@
       (.size ^java.util.Map coll)
 
     (-> coll .getClass .isArray)
-      (java.lang.reflect.Array/getLength coll)
-
+    ;;(java.lang.reflect.Array/getLength coll)
+      (clojure.lang.RT/alength coll)
+    
     :else
       (throw (UnsupportedOperationException.
               (str "count not supported on this type: "
@@ -87,16 +88,11 @@
 (def seqable-hash-code
   (memoize
    (fn [obj]
-     (reduce- #(+ (* 31 %)
-                  (if %2 (.hashCode %2) 0)) 1 obj))))
+     (unchecked-int (reduce- #(unchecked-add-int (unchecked-int (* 31 %))
+                                                 (unchecked-int (hash- %2))) 1 obj)))))
 
 (defn reify-seq [seq]
   (java.util.Collections/unmodifiableList (java.util.ArrayList. seq)))
-
-(defn equals? [a b]
-  (or (identical? a b)
-      (and (not (nil? a))
-           (.equals a b))))
 
 (defn unsigned-bit-shift-right
   "Shifts the input `x` to the right by `n` places and sets the leftmost bit to 0."
@@ -133,3 +129,23 @@
       (when (< len (.lenght a))
         (aset o len nil))
       o)))
+
+;;identical? -> ==
+;;equiv -> =
+
+(defn equiv? [a b]
+  (or (identical? a b)
+      (and a
+           (if (and (instance? java.lang.Number a)
+                    (instance? java.lang.Number b))
+             (clojure.lang.Numbers/equal a b)
+             (if (instance? IPersistent a)
+               (.equiv a b)
+               (if (instance? IPersistent b)
+                 (.equiv a b)
+                 (.equals a b)))))))
+
+(defn equals? [a b]
+  (or (identical? a b)
+      (and (not (nil? a))
+           (.equals a b))))

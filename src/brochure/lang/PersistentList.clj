@@ -72,7 +72,7 @@
   (equals [_ o]
     (and (or (isa? ISequential o)
              (isa? java.util.List o))
-         (nil? (seq o))))
+         (nil? (-seq o))))
   (toString [_]
     "()")
 
@@ -160,12 +160,6 @@
     (and (or (isa? ISequential o) (isa? java.util.List o))
          (every? true? (map equals? this o)))))
 
-(defn create [^java.util.List init]
-  (loop [ret empty-list ^java.util.Iterator i (.listIterator init (.size init))]
-    (if (.hasPrevious ^java.util.Iterator i)
-      (recur (-conj ret (.previous ^java.util.Iterator i)) i)
-      ret)))
-
 (def list- (proxy [clojure.lang.RestFn] []
              (getRequiredArity [] 0)
              (doInvoke [args]
@@ -180,4 +174,7 @@
                      (when s
                        (.add list (first s))
                        (recur (next s))))
-                   (create list))))))
+                   (loop [ret empty-list ^java.util.Iterator i (.listIterator list (.size list))]
+                     (if (.hasPrevious ^java.util.Iterator i)
+                       (recur (-conj ret (.previous ^java.util.Iterator i)) i)
+                       ret)))))))
