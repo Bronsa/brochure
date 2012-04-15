@@ -36,7 +36,7 @@
         (throw (UnsupportedOperationException.)))))
   (toArray [_] (object-array 0))
   (toArray [_ o]
-    (if (> (.length o) 0)
+    (if (> (alength o) 0)
       (aset o 0 nil))
     o)
   
@@ -155,16 +155,16 @@
              (doInvoke [args]
                (if (instance? clojure.lang.ArraySeq args)
                  (let [^objects argsarray (.array ^clojure.lang.ArraySeq args)]
-                   (loop [i (dec (clojure.lang.RT/alength argsarray)) ret empty-list]
+                   (loop [i (dec (alength argsarray)) ret empty-list]
                      (if (pos? i)
                        (recur (dec i) (-conj ret (aget argsarray i)))
                        ret)))
-                 (let [^java.util.LinkedList list (java.util.LinkedList.)]
+                 (let [list (java.util.LinkedList.)]
                    (loop [s (seq args)]
                      (when s
                        (.add list (first s))
                        (recur (next s))))
-                   (loop [ret empty-list ^java.util.Iterator i (.listIterator list (.size list))]
-                     (if (.hasPrevious ^java.util.Iterator i)
-                       (recur (-conj ret (.previous ^java.util.Iterator i)) i)
+                   (loop [ret empty-list i (.listIterator list (.size list))]
+                     (if (.hasPrevious i)
+                       (recur (-conj ret (.previous i )) i)
                        ret)))))))

@@ -110,7 +110,7 @@
   (equals [this obj]
     (or (identical? this obj)
         (and (or (instance? ISequential obj)
-                 (instance java.util.List obj))
+                 (instance? java.util.List obj))
              (loop [ms (-seq obj) s (-seq this)]
                (if-not (nil? ms)
                  (if (not (and (nil? ms)
@@ -121,7 +121,7 @@
   IEquiv
   (-equiv [this obj]
     (and (or (instance? ISequential obj)
-             (instance java.util.List obj))
+             (instance? java.util.List obj))
          (loop [ms (-seq obj) s (-seq this)]
            (if-not (nil? ms)
              (if (not (and (nil? ms)

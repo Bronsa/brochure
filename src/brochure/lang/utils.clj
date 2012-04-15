@@ -34,7 +34,7 @@
 
     (-> coll .getClass .isArray)
     ;;(java.lang.reflect.Array/getLength coll)
-      (clojure.lang.RT/alength coll)
+      (alength coll)
     
     :else
       (throw (UnsupportedOperationException.
@@ -91,7 +91,7 @@
      (unchecked-int (reduce- #(unchecked-add-int (unchecked-int (* 31 %))
                                                  (unchecked-int (hash- %2))) 1 obj)))))
 
-(defn reify-seq [seq]
+(defn reify-seq ^java.util.List [seq]
   (java.util.Collections/unmodifiableList (java.util.ArrayList. seq)))
 
 (defn unsigned-bit-shift-right
