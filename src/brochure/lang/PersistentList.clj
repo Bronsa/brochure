@@ -3,7 +3,9 @@
             [brochure.lang.implementations :refer :all]
             [brochure.lang.utils :refer :all]))
 
-(set! *unchecked-math* true) ;; we need this to overflow on -hash
+(declare ->EmptyList)
+(defn empty-list []
+  (->EmptyList {}))
 
 (deftype SeqIterator [^:unsynchronized-mutable seq]
   java.util.Iterator
@@ -17,8 +19,6 @@
   (remove [_] (throw (java.util.NoSuchElementException.))))
 
 
-(declare ->EmptyList)
-
 (deftype Cons [first next meta]
 
   ASeq
@@ -28,7 +28,7 @@
   java.io.Serializable
   
   IEmptyableCollection
-  (-empty [_] (with-meta (->EmptyList) meta))
+  (-empty [_] (with-meta (empty-list) meta))
 
   ICollection
   (-conj [coll o] (Cons. nil o coll))
@@ -122,7 +122,8 @@
   (-pop [coll] (throw (Exception. "Can't pop empty list")))
 
   ICollection
-  (-conj [coll o] (PersistentList. meta o nil 1))
+  (-conj [coll o]
+    (PersistentList. o nil 1 meta))
 
   IEmptyableCollection
   (-empty [this] this)
@@ -148,3 +149,15 @@
 
   ICounted
   (-count [coll] 0))
+
+;; ;;slow
+;; (defn list- [& args]
+;;   (let [^java.util.LinkedList list (java.util.LinkedList.)]
+;;     (loop [s (seq args)]
+;;       (when s
+;;         (.add list (first s))
+;;         (recur (next s))))
+;;     (loop [ret (empty-list) ^java.util.Iterator i (.listIterator list (.size list))]
+;;       (if (.hasPrevious i)
+;;         (recur (-conj ret (.previous i)) i)
+;;         ret))))

@@ -59,28 +59,13 @@
     (.listIterator (reify-seq this)))
   (listIterator [this index]
     (.listIterator (reify-seq this) index))
-  (size [this] (-count this))
+  (size [this] (count- this))
   (subList [this fromIndex toIndex]
     (.subList (reify-seq this) fromIndex toIndex))
   (toArray [this]
-    (let [o (object-array (-count this))]
-      (loop [curr (-seq this) i 0]
-        (when curr
-          (aset o i (-first curr))
-          (recur (-next curr) (inc i))))
-      o))
+    (to-array- this))
   (toArray [this a]
-    (let [len (-count this)
-          o (if (> len (.length a))
-              (java.lang.reflect.Array/newInstance (-> a .getClass .getComponentType) len)
-              a)]
-      (loop [curr (-seq this) i 0]
-        (when curr
-          (aset o i (-first curr))
-          (recur (-next curr) (inc i))))
-      (when (< len (.lenght a))
-        (aset o len nil))
-      o))
+    (to-array- this a))
   (add [_ o]
     (throw (UnsupportedOperationException.)))
   (add [_ index element]
@@ -110,7 +95,8 @@
 
   IHash
   (-hash [this]
-    (int (reduce- #(+ (* 31 %) (hash- %2)) 1 this)))
+    (unchecked-int (reduce- #(unchecked-add-int (unchecked-int (* 31 %))
+                                                (unchecked-int (hash- %2))) 1 this)))
 
   IEmptyableCollection
   (-empty [_] (->EmptyList))
@@ -124,7 +110,8 @@
 
   Object
   (hashCode [this]
-    (reduce- #(+ (* 31 %) (if %2 (.hashCode %2) 0)) 1 this))
+    (reduce- #(unchecked-add-int (unchecked-int (* 31 %))
+                                 (unchecked-int (if %2 (.hashCode %2) 0))) 1 this))
 
   IMeta
   (-meta [_] meta))

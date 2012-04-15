@@ -1,5 +1,5 @@
 (ns brochure.core
-  (:refer-clojure :exclude [atom swap! meta with-meta])
+  (:refer-clojure :exclude [atom swap! meta with-meta force])
   (:require [brochure.lang :refer :all]
             [brochure.lang.protocols :refer :all])
   (:import java.util.concurrent.atomic.AtomicReference))

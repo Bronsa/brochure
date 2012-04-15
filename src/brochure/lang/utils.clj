@@ -115,3 +115,23 @@
       (recur (dec c))))
   to-array)
 
+(defn to-array-
+  ([this]
+     (let [o (object-array (-count this))]
+       (loop [curr (-seq this) i 0]
+         (when curr
+           (aset o i (-first curr))
+           (recur (-next curr) (inc i))))
+       o))
+  ([this a]
+     (let [len (-count this)
+          o (if (> len (.length a))
+              (java.lang.reflect.Array/newInstance (-> a .getClass .getComponentType) len)
+              a)]
+      (loop [curr (-seq this) i 0]
+        (when curr
+          (aset o i (-first curr))
+          (recur (-next curr) (inc i))))
+      (when (< len (.lenght a))
+        (aset o len nil))
+      o)))
