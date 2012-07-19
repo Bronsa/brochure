@@ -8,10 +8,10 @@
 
 (ns clojure.reader
   (:refer-clojure :exclude [read read-line read-string])
-  (:import (clojure.lang BigInt Numbers PersistentHashMap PersistentHashSet PersistentArrayMap IMeta ISeq
+  (:import (clojure.lang BigInt Numbers PersistentHashMap PersistentHashSet IMeta ISeq
                          RT IReference Symbol IPersistentList Reflector Var Symbol Keyword IObj
-                         IPersistentCollection IRecord)
-           (java.util ArrayList regex.Pattern)
+                         PersistentVector IPersistentCollection IRecord)
+           (java.util ArrayList regex.Pattern regex.Matcher)
            java.lang.reflect.Constructor))
 
 (set! *warn-on-reflection* true)
@@ -25,12 +25,13 @@
   (list 'set! what (list f what)))
 
 (deftype StringPushbackReader
-    [^:unsynchronized-mutable ^String s ^"[C" buf ^:unsynchronized-mutable len ^:unsynchronized-mutable buf?]
+    [^:unsynchronized-mutable ^String s ^:unsynchronized-mutable buf
+     ^:unsynchronized-mutable len ^:unsynchronized-mutable buf?]
   PushbackReader
   (read-char [reader]
     (if buf?
       (do (set! buf? false)
-          (aget buf 0))
+          buf)
       (when (pos? len)
         (let [r (.charAt s 0)]
           (update! len dec)
@@ -38,37 +39,38 @@
           r))))
   (peek-char [reader]
     (if buf?
-      (aget buf 0)
+      buf
       (when (pos? len)
           (.charAt s 0))))
   (unread [reader ch]
     (when ch
       (if buf? (throw (RuntimeException. "Pushback buffer is full")))
-      (aset buf 0 ^char ch)
+      (set! buf ch)
       (set! buf? true))))
 
 (defn push-back-reader [^String s]
   "Creates a StringPushbackReader from a given string"
-  (StringPushbackReader. s (char-array 1) (.length s) false))
+  (StringPushbackReader. s nil (.length s) false))
 
 (defprotocol LineNumberingReader
   (get-line-number [reader]))
 
 (defn read-line [rdr]
-  (let [c (read-char rdr)]
-    (case c
-      nil nil
-      \newline ""
-      (str c (read-line rdr)))))
+  (loop [c (read-char rdr) s ""]
+    (if (or (= \newline c)
+            (nil? c))
+      s
+      (recur (read-char rdr) (str s c)))))
 
 (deftype LineNumberingPushbackReader
-    [spr ^:unsynchronized-mutable line ^:unsynchronized-mutable line-start? ^:unsynchronized-mutable prev]
+    [^StringPushbackReader spr ^:unsynchronized-mutable line
+     ^:unsynchronized-mutable line-start? ^:unsynchronized-mutable prev]
   PushbackReader
   (read-char [reader]
     (when-let [ch (read-char spr)]
       (let [ch (if (= \return ch)
                   (let [c (peek-char spr)]
-                    (when (= \formfeed ch)
+                    (when (= \formfeed c)
                       (read-char spr))
                     \newline)
                   ch)]
@@ -102,23 +104,21 @@
 (defn- whitespace?
   "Checks whether a given character is whitespace"
   [^Character ch]
-  (if ch
-   (or (Character/isWhitespace ch) (= \, ch))))
+  (or (Character/isWhitespace ch) (= \, ch)))
 
 (defn- numeric?
   "Checks whether a given character is numeric"
   [^Character ch]
-  (if ch
-    (Character/isDigit ch)))
+  (Character/isDigit ch))
    
 (defn- comment-prefix?
   "Checks whether the character begins a comment."
   [ch]
-  (= \; ch))
+  (= \; ^char ch))
 
 (defn- number-literal?
   "Checks whether the reader is at the start of a number literal"
-  [reader initch]
+  [reader ^Character initch]
   (or (numeric? initch)
       (and (or (= \+ initch) (= \- initch))
            (numeric? (peek-char reader)))))
@@ -136,8 +136,8 @@
   #_ (throw (ReaderException. (get-line rdr) (apply str msg))))
 
 (defn macro-terminating? [ch]
-  (and (not= ch \#)
-       (not= ch \')
+  (and (not (= \# ch))
+       (not (= \' ch))
        ;(not= ch \:) ;; why?
        (macros ch)))
 
@@ -161,22 +161,24 @@
 (def ^Pattern ratio-pattern #"([-+]?[0-9]+)/([0-9]+)")
 (def ^Pattern float-pattern #"([-+]?[0-9]+(\.[0-9]*)?([eE][-+]?[0-9]+)?)(M)?")
 
+(deftype Pair [a b])
+
 (defn- match-int
-  [s ^java.util.regex.Matcher m]
+  [s ^Matcher m]
   (if (.group m 2)
     (if (.group m 8) 0N 0)
-    (let [negate (= "-" (.group m 1))
+    (let [negate? (= "-" (.group m 1))
           a (cond
-              (.group m 3) [(.group m 3) 10]
-              (.group m 4) [(.group m 4) 16]
-              (.group m 5) [(.group m 5) 8]
-              (.group m 7) [(.group m 7) (Integer/parseInt (.group m 6))]
-              :default [nil nil])
-          ^String n (first a)
-          ^int radix (second a)]
+              (.group m 3) (Pair. (.group m 3) 10)
+              (.group m 4) (Pair. (.group m 4) 16)
+              (.group m 5) (Pair. (.group m 5) 8)
+              (.group m 7) (Pair. (.group m 7) (Integer/parseInt (.group m 6)))
+              :default     (Pair. nil nil))
+          ^String n (.a a)
+          ^int radix (.b a)]
       (when n
         (let [bn (BigInteger. n radix)
-              bn (if negate (.negate bn) bn)]
+              bn (if negate? (.negate bn) bn)]
           (if (.group m 8)
             (BigInt/fromBigInteger bn)
             (if (< (.bitLength bn) 64)
@@ -184,20 +186,20 @@
               (BigInt/fromBigInteger bn))))))))
 
 (defn- match-ratio
-  [s ^java.util.regex.Matcher m]
+  [s ^Matcher m]
   (let [^String numinator (.group m 1)
         ^String denominator (.group m 2)]
     (/ (-> numinator   BigInteger. BigInt/fromBigInteger Numbers/reduceBigInt)
        (-> denominator BigInteger. BigInt/fromBigInteger Numbers/reduceBigInt))))
 
 (defn- match-float
-  [s ^java.util.regex.Matcher m]
+  [^String s ^Matcher m]
   (if (.group m 4)
     (BigDecimal. ^String (.group m 1))
     (Double/parseDouble s)))
 
 (defn- match-number
-  [s]
+  [^String s]
   (let [m (.matcher int-pattern s)]
     (if (.matches m) (match-int s m)
         (let [m (.matcher float-pattern s)]
@@ -211,22 +213,23 @@
 
 (defn read-unicode-char
   ([^String token offset length base]
-     (if (not= (.length token) (+ offset length))
-       (throw (IllegalArgumentException. (str "Invalid unicode character: \\" token))))
-     (loop [uc 0 i offset]
-       (if (= i (+ offset length))
-         (char uc)
-         (let [d (Character/digit (.charAt token i) ^int base)]
-           (if (== d -1)
-             (throw (IllegalArgumentException. (str "Invalid digit: " (.charAt token i))))
-             (recur (long (* uc (+ base d))) (inc i)))))))
+     (let [l (+ offset length)]
+       (if (not (= (.length token) l))
+         (throw (IllegalArgumentException. (str "Invalid unicode character: \\" token))))
+      (loop [uc 0 i offset]
+        (if (= i l)
+          (char uc)
+          (let [d (Character/digit (.charAt token i) ^int base)]
+            (if (= d -1)
+              (throw (IllegalArgumentException. (str "Invalid digit: " (.charAt token i))))
+              (recur (long (*' uc (+' base d))) (inc' i))))))))
 
   ([rdr initch base length exact?]
      (let [uc (Character/digit ^char initch ^int base)]
        (if (= uc -1)
-         (throw (IllegalArgumentException. (str "Invalid digit: " (char initch)))))
+         (throw (IllegalArgumentException. (str "Invalid digit: " initch))))
        (loop [i 1 uc uc]
-         (if (not= i length)
+         (if (not (= i length))
            (let [ch (peek-char rdr)]
              (if (or (nil? ch)
                      (whitespace? ch)
@@ -239,13 +242,13 @@
                      _ (read-char rdr)] ;; avoid unread
                  (if (= d -1)
                    (throw (IllegalArgumentException. (str "Invalid digit: " (char ch))))
-                   (recur (inc i) (long (* uc (+ base d))))))))
+                   (recur (long (inc' i)) (long (*' uc (+' base d))))))))
            (char uc))))))
 
 (defn read-char*
   [rdr backslash]
   (let [ch (read-char rdr)]
-    (if ch
+    (if (not (nil? ch))
       (let [token (read-token rdr ch)]
         (cond
 
@@ -287,52 +290,41 @@
       (recur (read-char rdr))
       ch)))
 
-(defn ^ArrayList read-delimited-list
+(defn ^PersistentVector read-delimited-list
   [delim rdr recursive?]
   (let [first-line (if (satisfies? LineNumberingReader rdr)
-                     (get-line-number rdr))
-        a (ArrayList.)]
-   (loop []
+                     (get-line-number rdr))]
+   (loop [a (transient [])]
      (let [ch (read-past whitespace? rdr)]
        (when-not ch
          (reader-error rdr "EOF while reading"
                        (if first-line
                          (str ", starting at line" first-line))))
        (if (= delim ch)
-         a
+         (persistent! a)
          (if-let [macrofn (macros ch)]
            (let [mret (macrofn rdr ch)]
-             (if-not (= mret rdr)
-               (.add a mret))
-             (recur))
+             (recur (if-not (= mret rdr) (conj! a mret) a)))
            (do
              (unread rdr ch)
              (let [o (read rdr true nil recursive?)]
-               (if-not (= o rdr)
-                 (.add a o))
-               (recur)))))))))
+               (recur (if-not (= o rdr) (conj! a o) a))))))))))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;; data structure readers
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
-(defn not-implemented
-  [rdr ch]
-  (reader-error rdr "Reader for " ch " not implemented yet"))
-
 (declare read-tagged)
 
 (defn read-dispatch
   [rdr _]
-  (let [ch (read-char rdr)
-        dm (dispatch-macros ch)]
-    (if ch
-     (if dm
-       (dm rdr ch)
-       (if-let [obj (read-tagged rdr ch)] ;; ctor reader is implemented as a taggged literal
-         obj
-         (reader-error rdr "No dispatch macro for " ch)))
-     (reader-error rdr "EOF while reading character"))))
+  (if-let [ch (read-char rdr)]
+    (if-let [dm (dispatch-macros ch)]
+      (dm rdr ch)
+      (if-let [obj (read-tagged rdr ch)] ;; ctor reader is implemented as a taggged literal
+        obj
+        (reader-error rdr "No dispatch macro for " ch)))
+    (reader-error rdr "EOF while reading character")))
 
 (defn read-unmatched-delimiter
   [rdr ch]
@@ -353,11 +345,11 @@
 
 (defn read-vector
   [rdr _]
-  (vec (read-delimited-list \] rdr true)))
+  (read-delimited-list \] rdr true))
 
 (defn read-map
   [rdr _]
-  (let [l (.toArray (read-delimited-list \} rdr true))]
+  (let [l (to-array (read-delimited-list \} rdr true))]
     (when (= 1 (bit-and (count l) 1))
       (reader-error rdr "Map literal must contain an even number of forms"))
     (RT/map l)))
@@ -404,40 +396,51 @@
      (= \" ch) (.toString sb)
      :default (recur (doto sb (.append ch)) (read-char reader)))))
 
-(def ^Pattern symbol-pattern #"(:)?(?:([^0-9][^/]*)/)?((?:[^0-9/][^/]*)|/)")
+(defn- ^Pair parse-symbol [^String token]
+  (when (not (numeric? (.charAt token 0)))
+    (let [ns-idx (.indexOf token "/")
+          ns (if (not (= -1 ns-idx)) (.substring token 0 ns-idx))]
+      (if (nil? ns)
+        (Pair. nil token)
+        (when (not (= (inc ns-idx) (count token)))
+          (let [sym (.substring token (inc ns-idx))]
+            (when (and (not (numeric? (.charAt sym 0)))
+                     (or (= sym "/")
+                         (= -1 (.indexOf sym "/"))))
+              (Pair. ns sym))))))))
 
 (defn read-symbol
   [rdr initch]
-  (let [token (read-token rdr initch)
-        m (.matcher symbol-pattern token)]
+  (let [token (read-token rdr initch)]
     (case token
 
       ;; special symbols
       "nil" nil
       "true" true
       "false" false
+      "/" '/
       
-      (if (.matches m)
-        (symbol (.group m 2) (.group m 3))
-        (reader-error rdr "Invalid token: " token)))))
+      (or (when-let [p (parse-symbol token)]
+            (symbol (.a p) (.b p)))
+          (reader-error rdr "Invalid token:" token)))))
 
 (defn read-keyword
   [reader initch]
   (let [token (read-token reader (read-char reader))
-        m (.matcher symbol-pattern token)]
-    (if (and (.matches m)
+        s (parse-symbol token)]
+    (if (and s
              (= -1 (.indexOf token (int \.))))
-      (let [ns (.group m 2)
-            name (.group m 3)]
-        (if (= ":" (.group m 1))
+      (let [^String ns (.a s)
+            ^String name (.b s)]
+        (if (= \: (.charAt token 0))
           (if ns
-            (let [ns (symbol ns)
+            (let [ns (symbol (.substring ns 1))
                   ns (or (find-ns ns)
                          (.lookupAlias *ns* (symbol ns)))]
               (if ns
                 (keyword (str ns) name)
                 (reader-error reader "Invalid token: :" token)))
-            (keyword (str *ns*) name))
+            (keyword (str *ns*) (.substring name 1)))
           (keyword ns name)))
       (reader-error reader "Invalid token: :" token))))
 
@@ -799,3 +802,8 @@
   "Reads one object from the string s"
   [s]
   (read (push-back-reader s) true nil false))
+
+
+(defn bench [] (let [pl (pbr l)] (loop [r (read pl true nil true)]
+                                                    (if r (recur (try (read pl true nil true)
+                                                                      (catch Exception _)))))))
