@@ -471,7 +471,7 @@
       (reader-error rdr "Metadata must be Symbol,Keyword,String or Map"))
     (let [o (read rdr true nil true)]
       (if (instance? IMeta o)
-        (let [m (if (and line (instance? ISeq o)) (assoc m :line line))]
+        (let [m (if (and (not (nil? line)) (instance? ISeq o)) (assoc m :line line))]
           (if (instance? IReference o)
             (reset-meta! o m)
             (with-meta o (merge (meta o) m))))
@@ -485,12 +485,12 @@
   [rdr ch]
   (let [sb (StringBuilder.)]
     (loop [ch (read-char rdr)]
-      (if (= ch \")
+      (if (= \" ch)
         (Pattern/compile (.toString sb))
         (if (nil? ch)
           (reader-error rdr "EOF while reading regex")
           (do (.append sb ch)
-              (if (= ch \\)
+              (if (= \\ ch)
                 (let [ch (read-char rdr)]
                   (if (nil? ch)
                     (reader-error rdr "EOF while reading regex"))
@@ -513,11 +513,10 @@
   [rdr _]
   (if arg-env
     (throw (IllegalStateException. "Nested #()s are not allowed")))
-  (with-bindings {#'arg-env {}}
+  (with-bindings {#'arg-env (sorted-map)}
     (unread rdr \()
     (let [form (read rdr true nil true) ;; this sets bindings
-          argsyms arg-env
-          rargs (rseq (vec argsyms))
+          rargs (rseq arg-env)
           args (if rargs
                  (let [higharg (key (first rargs))]
                    (if (pos? higharg)
@@ -525,9 +524,11 @@
                                   (if (> i higharg)
                                     args
                                     (recur (inc i) (conj args (get rargs i)))))
-                           args (if (get argsyms -1)
-                                  (conj args '& (get argsyms -1)))]
-                       args))))]
+                           args (if (arg-env -1)
+                                  (conj args '& (arg-env -1))
+                                  args)]
+                       args)))
+                 [])]
       (list 'fn* args form))))
 
 (defn- garg [n]
@@ -535,10 +536,10 @@
                "__" (RT/nextID) "#")))
 
 (defn register-arg [n]
-  (if-let [argsyms arg-env]
-    (if-let [ret (get argsyms n)]
+  (if arg-env
+    (if-let [ret (arg-env n)]
       ret
-      (set! arg-env (assoc argsyms n (garg n)))) ;; set! returns the value
+      (set! arg-env (assoc arg-env n (garg n)))) ;; set! returns the value
     (throw (IllegalStateException. "Arg literal not in #()")))) ;; should never hit this
 
 (declare read-symbol)
@@ -557,7 +558,7 @@
             (register-arg -1)
             (if (not (instance? Number n))
               (throw (IllegalStateException. "Arg literal must be %, %& or %integer"))
-              (register-arg (.intValue ^Number n)))))))))
+              (register-arg n))))))))
 
 (defn read-eval
   [rdr _]
@@ -723,7 +724,7 @@
 
 (defn dispatch-macros [s]
   (case s
-    \^ read-meta ;deprecated
+    \^ read-meta                       ;deprecated
     \' read-var
     \( read-fn
     \= read-eval
@@ -802,8 +803,3 @@
   "Reads one object from the string s"
   [s]
   (read (push-back-reader s) true nil false))
-
-
-(defn bench [] (let [pl (pbr l)] (loop [r (read pl true nil true)]
-                                                    (if r (recur (try (read pl true nil true)
-                                                                      (catch Exception _)))))))
