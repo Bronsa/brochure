@@ -1,20 +1,20 @@
-;   Copyright (c) Rich Hickey. All rights reserved.
-;   The use and distribution terms for this software are covered by the
-;   Eclipse Public License 1.0 (http://opensource.org/licenses/eclipse-1.0.php)
-;   which can be found in the file epl-v10.html at the root of this distribution.
-;   By using this software in any fashion, you are agreeing to be bound by
-;   the terms of this license.
-;   You must not remove this notice, or any other, from this software.
+;; Copyright (c) Rich Hickey. All rights reserved.
+;; The use and distribution terms for this software are covered by the
+;; Eclipse Public License 1.0 (http://opensource.org/licenses/eclipse-1.0.php)
+;; which can be found in the file epl-v10.html at the root of this distribution.
+;; By using this software in any fashion, you are agreeing to be bound by
+;; the terms of this license.
+;; You must not remove this notice, or any other, from this software.
 
-(ns clojure.reader
+(set! *warn-on-reflection* true)
+
+(ns clojure.lang.reader
   (:refer-clojure :exclude [read read-line read-string])
   (:import (clojure.lang BigInt Numbers PersistentHashMap PersistentHashSet IMeta ISeq
                          RT IReference Symbol IPersistentList Reflector Var Symbol Keyword IObj
                          PersistentVector IPersistentCollection IRecord)
            (java.util ArrayList regex.Pattern regex.Matcher)
            java.lang.reflect.Constructor))
-
-(set! *warn-on-reflection* true)
 
 (defprotocol PushbackReader
   (read-char [reader] "Returns the next char from the Reader, nil if the end of stream has been reached")
@@ -196,14 +196,11 @@
     (BigDecimal. ^String (.group m 1))
     (Double/parseDouble s)))
 
-(defn- match-number
-  [^String s]
-  (let [m (.matcher int-pattern s)]
-    (if (.matches m) (match-int s m)
-        (let [m (.matcher float-pattern s)]
-          (if (.matches m) (match-float s m)
-              (let [m (.matcher ratio-pattern s)]
-                (if (.matches m) (match-float s m))))))))
+(defn match-number [^String s]
+  (cond
+   (.contains s "/") (match-ratio s (doto (.matcher ratio-pattern s) .matches))
+   (.contains s ".") (match-float s (doto (.matcher float-pattern s) .matches))
+   :else (match-int s (doto (.matcher int-pattern s) .matches))))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;; unicode
@@ -212,7 +209,7 @@
 (defn read-unicode-char
   ([^String token offset length base]
      (let [l (+ offset length)]
-       (if (not (= (.length token) l))
+       (when-not (= (.length token) l)
          (throw (IllegalArgumentException. (str "Invalid unicode character: \\" token))))
       (loop [uc 0 i offset]
         (if (= i l)
@@ -227,7 +224,7 @@
        (if (= uc -1)
          (throw (IllegalArgumentException. (str "Invalid digit: " initch))))
        (loop [i 1 uc uc]
-         (if (not (= i length))
+         (if-not (= i length)
            (let [ch (peek-char rdr)]
              (if (or (nil? ch)
                      (whitespace? ch)
@@ -246,7 +243,7 @@
 (defn read-char*
   [rdr backslash]
   (let [ch (read-char rdr)]
-    (if (not (nil? ch))
+    (if-not (nil? ch)
       (let [token (read-token rdr ch)]
         (cond
 
