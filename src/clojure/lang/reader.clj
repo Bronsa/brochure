@@ -161,21 +161,19 @@
 (def ^Pattern ratio-pattern #"([-+]?[0-9]+)/([0-9]+)")
 (def ^Pattern float-pattern #"([-+]?[0-9]+(\.[0-9]*)?([eE][-+]?[0-9]+)?)(M)?")
 
-(deftype Pair [a b])
-
 (defn- match-int
   [s ^Matcher m]
   (if (.group m 2)
     (if (.group m 8) 0N 0)
     (let [negate? (= "-" (.group m 1))
           a (cond
-              (.group m 3) (Pair. (.group m 3) 10)
-              (.group m 4) (Pair. (.group m 4) 16)
-              (.group m 5) (Pair. (.group m 5) 8)
-              (.group m 7) (Pair. (.group m 7) (Integer/parseInt (.group m 6)))
-              :default     (Pair. nil nil))
-          ^String n (.a a)
-          ^int radix (.b a)]
+              (.group m 3) [(.group m 3) 10]
+              (.group m 4) [(.group m 4) 16]
+              (.group m 5) [(.group m 5) 8]
+              (.group m 7) [(.group m 7) (Integer/parseInt (.group m 6))]
+              :default     [nil nil])
+          ^String n (a 0)
+          ^int radix (a 1)]
       (when n
         (let [bn (BigInteger. n radix)
               bn (if negate? (.negate bn) bn)]
@@ -222,7 +220,7 @@
           (let [d (Character/digit (.charAt token i) ^int base)]
             (if (= d -1)
               (throw (IllegalArgumentException. (str "Invalid digit: " (.charAt token i))))
-              (recur (long (*' uc (+' base d))) (inc' i))))))))
+              (recur (long (* uc (+ base d))) (inc i))))))))
 
   ([rdr initch base length exact?]
      (let [uc (Character/digit ^char initch ^int base)]
@@ -242,7 +240,7 @@
                      _ (read-char rdr)] ;; avoid unread
                  (if (= d -1)
                    (throw (IllegalArgumentException. (str "Invalid digit: " (char ch))))
-                   (recur (long (inc' i)) (long (*' uc (+' base d))))))))
+                   (recur (inc i) (long (* uc (+ base d))))))))
            (char uc))))))
 
 (defn read-char*
@@ -396,18 +394,18 @@
      (= \" ch) (.toString sb)
      :default (recur (doto sb (.append ch)) (read-char reader)))))
 
-(defn- ^Pair parse-symbol [^String token]
+(defn- parse-symbol [^String token]
   (when (not (numeric? (.charAt token 0)))
     (let [ns-idx (.indexOf token "/")
           ns (if (not (= -1 ns-idx)) (.substring token 0 ns-idx))]
       (if (nil? ns)
-        (Pair. nil token)
+        [nil token]
         (when (not (= (inc ns-idx) (count token)))
           (let [sym (.substring token (inc ns-idx))]
             (when (and (not (numeric? (.charAt sym 0)))
-                     (or (= sym "/")
-                         (= -1 (.indexOf sym "/"))))
-              (Pair. ns sym))))))))
+                       (or (= sym "/")
+                           (= -1 (.indexOf sym "/"))))
+              [ns sym])))))))
 
 (defn read-symbol
   [rdr initch]
@@ -421,7 +419,7 @@
       "/" '/
       
       (or (when-let [p (parse-symbol token)]
-            (symbol (.a p) (.b p)))
+            (symbol (p 0) (p 1)))
           (reader-error rdr "Invalid token:" token)))))
 
 (defn read-keyword
@@ -430,8 +428,8 @@
         s (parse-symbol token)]
     (if (and s
              (= -1 (.indexOf token (int \.))))
-      (let [^String ns (.a s)
-            ^String name (.b s)]
+      (let [^String ns (s 0)
+            ^String name (s 1)]
         (if (= \: (.charAt token 0))
           (if ns
             (let [ns (symbol (.substring ns 1))
@@ -803,3 +801,17 @@
   "Reads one object from the string s"
   [s]
   (read (push-back-reader s) true nil false))
+
+(comment
+
+ (def l (slurp "/home/bronsa/src/clojure/src/clj/clojure/core.clj"))
+
+ (defn bench [] (let [pl (pbr l)] (loop [r (read pl true nil true)]
+                                    (if r (recur (try (read pl true nil true)
+                                                      (catch Exception _)))))))
+
+ (defn bench- [] (let [pl (java.io.PushbackReader. (java.io.StringReader. l))]
+                   (loop [r (clojure.core/read pl true nil true)]
+                     (if r (recur (try (clojure.core/read pl true nil true)
+                                       (catch Exception _)))))))
+ )
