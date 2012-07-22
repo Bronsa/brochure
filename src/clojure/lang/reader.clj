@@ -171,7 +171,7 @@
               (.group m 4) [(.group m 4) 16]
               (.group m 5) [(.group m 5) 8]
               (.group m 7) [(.group m 7) (Integer/parseInt (.group m 6))]
-              :default     [nil nil])
+              :else        [nil nil])
           ^String n (a 0)
           ^int radix (a 1)]
       (when n
@@ -264,6 +264,9 @@
               (reader-error rdr "Invalid character constant: \\u" (Integer/toString ic 16))
               c))
 
+          (.startsWith token "x")
+          (read-unicode-char token 1 2 16)
+          
           (.startsWith token "o")
           (let [len (dec (.length token))]
             (if (> len 3)
@@ -373,6 +376,10 @@
            (if (= -1 (Character/digit ^char ch 16))
              (reader-error rdr "Invalid unicode escape: \\u" ch)
              (read-unicode-char rdr ch 16 4 true)))
+      \x (let [ch (read-char rdr)]
+           (if (= -1 (Character/digit ^char ch 16))
+             (reader-error rdr "Invalid unicode escape: \\x" ch)
+             (read-unicode-char rdr ch 16 2 true)))
       (if (Character/isDigit ^char ch)
         (let [ch (read-unicode-char rdr ch 8 3 false)]
           (if (> (int ch) 0337)
