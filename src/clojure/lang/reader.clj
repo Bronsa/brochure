@@ -477,9 +477,9 @@
                          (instance? ISeq o))
                   (assoc m :line line)
                   m)]
-          (if (instance? IReference o)
-            (reset-meta! o m)
-            (with-meta o (merge (meta o) m))))
+          (if-not (instance? IReference o)
+            (with-meta o (merge (meta o) m))
+            #_(reset-meta! o m))) ;; I'm not sure whether this is right behaviour
         (reader-error rdr "Metadata can only be applied to IMetas")))))
 
 (defn read-set
