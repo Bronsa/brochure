@@ -473,7 +473,10 @@
       (reader-error rdr "Metadata must be Symbol,Keyword,String or Map"))
     (let [o (read rdr true nil true)]
       (if (instance? IMeta o)
-        (let [m (if (and (not (nil? line)) (instance? ISeq o)) (assoc m :line line))]
+        (let [m (if (and (not (nil? line))
+                         (instance? ISeq o))
+                  (assoc m :line line)
+                  m)]
           (if (instance? IReference o)
             (reset-meta! o m)
             (with-meta o (merge (meta o) m))))
