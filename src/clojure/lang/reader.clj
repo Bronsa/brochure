@@ -9,7 +9,9 @@
 (set! *warn-on-reflection* true)
 
 (ns clojure.lang.reader
-  (:refer-clojure :exclude [read read-line read-string])
+  (:refer-clojure :exclude [read read-line read-string *ns* ns-map the-ns])
+  (:require [clojure.lang.runtime :refer [*ns*]]
+            [clojure.lang.ns :refer [resolve-ns ns-map the-ns maybe-resolve]])
   (:import (clojure.lang BigInt Numbers PersistentHashMap PersistentHashSet IMeta ISeq
                          RT IReference Symbol IPersistentList Reflector Var Symbol Keyword IObj
                          PersistentVector IPersistentCollection IRecord)
@@ -436,9 +438,7 @@
             ^String name (s 1)]
         (if (= \: (.charAt token 0))
           (if ns
-            (let [ns (symbol (.substring ns 1))
-                  ns (or (find-ns ns)
-                         (.lookupAlias *ns* (symbol ns)))]
+            (let [ns (resolve-ns (symbol (.substring ns 1)))]
               (if ns
                 (keyword (str ns) name)
                 (reader-error reader "Invalid token: :" token)))
@@ -512,7 +512,7 @@
   [rdr _]
   (list 'var (read rdr true nil true)))
 
-(def ^:dynamic arg-env nil)
+(def ^:private ^:dynamic arg-env nil)
 
 (defn read-fn
   [rdr _]
@@ -588,13 +588,13 @@
               (Reflector/invokeStaticMethod (namespace fs) fs-name args))
 
             :else
-            (let [v (Compiler/maybeResolveIn *ns* fs)]
+            (let [v (maybe-resolve *ns* fs)]
               (if (instance? Var v)
                 (apply v (rest o))
                 (reader-error rdr "Can't resolve " fs)))))
         (throw (IllegalArgumentException. "Unsupported #= form"))))))
 
-(def ^:dynamic gensym-env nil)
+(def ^:private ^:dynamic gensym-env nil)
 
 (defn read-unquote
   [rdr comma]
@@ -640,13 +640,21 @@
                                             0 (dec (count (name sym))))
                                       "__" (RT/nextID) "__auto__"))))))
 
-;; HAR HAR
 (defn- resolve-symbol [s]
-  (.invoke
-   (doto
-      (.getDeclaredMethod Compiler "resolveSymbol" (into-array Class [clojure.lang.Symbol]))
-     (.setAccessible true))
-   Compiler (to-array [s])))
+  (if (pos? (.indexOf (name s) "."))
+    s
+    (if (namespace s)
+      (let [ns (resolve-ns s)]
+        (if (or (nil? ns)
+                (= (name (:name ns)) (namespace s))) ;; not an alias
+          s
+          (symbol (name (:name ns)) (name s))))
+      (if-let [o ((ns-map *ns*) s)]
+        (if (instance? Class o)
+          (symbol (.getName ^Class o))
+          (if (instance? Var o)
+            (symbol (-> ^Var o .ns .name name) (-> ^Var o .sym name))))
+        (symbol (name *ns*) (name s))))))
 
 (defn syntax-quote [form]
   (cond
@@ -655,7 +663,7 @@
     (instance? Symbol form)
     (list 'quote
           (if (namespace form)
-            (let [class? (.getMapping *ns* (symbol (namespace form)))]
+            (let [class? (ns-map (the-ns *ns*) (symbol (namespace form)))]
               (if (instance? Class class)
                 (symbol (.getName ^Class class?) (name form))
                 (resolve-symbol form)))
