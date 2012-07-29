@@ -663,7 +663,8 @@
     (instance? Symbol form)
     (list 'quote
           (if (namespace form)
-            (let [class? (ns-map (the-ns *ns*) (symbol (namespace form)))]
+            (let [class? ((ns-map (the-ns *ns*))
+                          (symbol (namespace form)))]
               (if (instance? Class class)
                 (symbol (.getName ^Class class?) (name form))
                 (resolve-symbol form)))
