@@ -1,12 +1,15 @@
 (ns clojure.lang.ns
-  (:refer-clojure :exclude [*ns* find-ns ns-aliases ns-unalias the-ns])
-  (:require [clojure.lang.runtime :refer [*ns*]]))
+  (:refer-clojure :exclude [*ns* find-ns ns-aliases ns-unalias the-ns ns-map ns-resolve])
+  (:require [clojure.lang.runtime :refer [*ns*]])
+  (:import (clojure.lang RT Var)))
 
 (defrecord Namespace [name mappings aliases])
 
-(defonce namespaces (atom '{clojure.core #clojure.lang.ns.Namespace{:name clojure.core}
-                            user         #clojure.lang.ns.Namespace{:name user}}))
+(defn make-ns [name]
+  (->Namespace name {} {}))
 
+(defonce namespaces (atom {'clojure.core (make-ns 'clojure.core)
+                           'user         (make-ns 'user)}))
 
 (defn find-ns [ns]
   (@namespaces ns))
@@ -23,6 +26,9 @@
 (defn ns-aliases [ns]
   (:aliases (the-ns ns)))
 
+(defn ns-map [ns]
+  (:mappings (the-ns ns)))
+
 (defn ns-unalias [ns sym]
   (let [ns (the-ns ns)
         unaliased (assoc ns :aliases
@@ -37,4 +43,32 @@
   ([sym] (resolve-ns *ns* sym))
   ([in-ns sym]
      (or (ns-alias in-ns sym)
-         (:name (find-ns ns)))))
+         (:name (find-ns sym)))))
+
+(defn find-interned-var
+  ([sym] (find-interned-var *ns* sym))
+  ([ns sym]
+     (when-let [o ((ns-map ns) sym)]
+       (when (and (instance? Var o)
+                  (= ns (.name (.ns o))))
+         o))))
+
+(defn maybe-resolve [ns sym]
+  (if-not (nil? (namespace sym))
+    (when-let [ns (resolve-ns ns sym)]
+      (find-interned-var ns (symbol (name sym))))
+    (if (or (and (pos? (-> sym name (.indexOf ".")))
+                 (not  (-> sym name (.endsWith "."))))
+            (= \[ (-> sym name (.charAt 0))))
+      (RT/classForName (name sym))
+      (if (= sym 'ns)
+        #'ns
+        (if (= sym 'in-ns)
+          #'in-ns
+          ((ns-map ns) sym))))))
+
+(defn ns-resolve
+  ([ns sym] (ns-resolve ns nil sym))
+  ([ns env sym]
+     (when-not (contains? env sym)
+       (maybe-resolve (the-ns ns) sym))))
