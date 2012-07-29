@@ -50,7 +50,7 @@
   ([ns sym]
      (when-let [o ((ns-map ns) sym)]
        (when (and (instance? Var o)
-                  (= ns (.name (.ns o))))
+                  (= ns (.name (.ns ^Var o))))
          o))))
 
 (defn maybe-resolve [ns sym]
