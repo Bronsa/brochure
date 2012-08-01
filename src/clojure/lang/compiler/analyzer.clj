@@ -9,9 +9,11 @@
 (set! *warn-on-reflection* true)
 
 (ns clojure.lang.compiler.analyzer
-  (:refer-clojure :exclude [macroexpand-1 *ns*])
+  (:refer-clojure :exclude [macroexpand-1 *ns* the-ns])
   (:require [clojure.java.io :as io]
-            [clojure.string :as string]))
+            [clojure.string :as string]
+            [clojure.lang.runtime :refer [*ns*]]
+            [clojure.lang.ns :refer [namespaces the-ns ns-alias]]))
 
 (do
   (in-ns 'clojure.core)
@@ -19,42 +21,37 @@
   (in-ns 'clojure.lang.compiler.analyzer)
   (refer 'clojure.core :only '[*warn-on-undeclared*]))
 
-(defonce namespaces (atom '{clojure.core {:name clojure.core}
-                            user         {:name user}}))
-
-(defonce ^:dynamic *ns* 'user)
-
 (defn empty-env []
-  {:ns (@namespaces *ns*) :context :statement :locals {}})
+  {:ns (the-ns *ns*) :context :statement :locals {}})
 
 (defmacro ^:private debug-prn
   [& args]
   `(binding [*out* *err*]
      (println (str ~@args))))
 
-(defn warning [env s]
+(defn warning [env & s]
   (debug-prn
-   "WARNING: " s
+   "WARNING: " (apply str s)
    (when (:line env)
      (str " at line " (:line env) " " *file*))))
 
-(defn confirm-var-exists [env prefix suffix]
+(defn confirm-var-exists [env ns sym]
   (when *warn-on-undeclared*
     (let [crnt-ns (-> env :ns :name)]
-      (when (= prefix crnt-ns)
-        (when-not (-> @namespaces crnt-ns :defs suffix)
-          (warning env
-            (str "Use of undeclared Var " prefix "/" suffix)))))))
+      (when (= ns crnt-ns)
+        (when-not ((ns-map crnt-ns) sym)
+          (warning env "Use of undeclared Var " ns "/" sym))))))
 
 (defn resolve-ns-alias [env name]
   (let [sym (symbol name)]
-    (get (:requires (:ns env)) sym sym)))
+    (or (ns-alias (:ns env) sym)
+        sym)))
 
 (defn core-name?
   "Is sym visible from core in the current compilation namespace?"
   [env sym]
-  (and (get (:defs (@namespaces 'clojure.core)) sym)
-       (not (contains? (-> env :ns :excludes) sym))))
+  (and ((ns-map 'clojure.core) sym)
+       ((ns-map (-> env :ns)) sym)))
 
 (defn resolve-var
   ([env sym] (resolve-var env sym false))
@@ -66,51 +63,53 @@
          
          (namespace sym)
          (let [ns (namespace sym)
-               full-ns (resolve-ns-alias env ns)]
-           (when confirm? (confirm-var-exists env full-ns (symbol (name sym))))
-           (merge (get-in @namespaces [full-ns :defs (symbol (name sym))])
-                  {:name (symbol (str full-ns) (str (name sym)))
+               full-ns (resolve-ns-alias env ns)
+               name (symbol (name sym))]
+           (when confirm? (confirm-var-exists env full-ns name))
+           (merge ((ns-map full-ns) name)
+                  {:name name
                    :ns full-ns}))
          
          
          ;; namespaces and classes, needs work, currently not working
-         (.contains s ".")
-         (let [idx (.indexOf s ".")
-               prefix (symbol (subs s 0 idx))
-               suffix (subs s (inc idx))
-               lb (-> env :locals prefix)]
-           (if lb
-             {:name (symbol (str (:name lb) suffix))}
-             (do
-               (when confirm? (confirm-var-exists env prefix (symbol suffix)))
-               (merge (get-in @namespaces [prefix :defs (symbol suffix)])
-                      {:name (symbol (str prefix) suffix)
-                       :ns prefix}))))
+         ;; (.contains s ".")
+         ;; (let [idx (.indexOf s ".")
+         ;;       prefix (symbol (subs s 0 idx))
+         ;;       suffix (subs s (inc idx))
+         ;;       lb (-> env :locals prefix)]
+         ;;   (if lb
+         ;;     {:name (symbol (str (:name lb) suffix))}
+         ;;     (do
+         ;;       (when confirm? (confirm-var-exists env prefix (symbol suffix)))
+         ;;       (merge (get-in @namespaces [prefix :defs (symbol suffix)])
+         ;;              {:name (symbol (str prefix) suffix)
+         ;;               :ns prefix}))))
          
-         (get-in @namespaces [(-> env :ns :name) :uses sym])
-         (let [full-ns (get-in @namespaces [(-> env :ns :name) :uses sym])]
-           (merge
-            (when confirm? (get-in @namespaces [full-ns :defs sym]))
-            {:name (symbol (str full-ns) (str sym))
-             :ns (-> env :ns :name)}))
+         ;; (get-in @namespaces [(-> env :ns :name) :uses sym])
+         ;; (let [full-ns (get-in @namespaces [(-> env :ns :name) :uses sym])]
+         ;;   (merge
+         ;;    (when confirm? (get-in @namespaces [full-ns :defs sym]))
+         ;;    {:name (symbol (str full-ns) (str sym))
+         ;;     :ns (-> env :ns :name)}))
 
-           :else
-           (let [full-ns (if (core-name? env sym)
-                           'clojure.core
-                           (-> env :ns :name))]
-             (when confirm? (confirm-var-exists env full-ns sym))
-             (merge (get-in @namespaces [full-ns :defs sym])
-                    {:name (symbol (str full-ns) (str sym))
-                     :ns full-ns}))))))
+         ;;   :else
+         ;;   (let [full-ns (if (core-name? env sym)
+         ;;                   'clojure.core
+         ;;                   (-> env :ns :name))]
+         ;;     (when confirm? (confirm-var-exists env full-ns sym))
+         ;;     (merge ((ns-map full-ns) sym)
+         ;;            {:name sym
+         ;;             :ns full-ns}))
+         ))))
 
 (defn resolve-existing-var [env sym]
   (resolve-var env sym true))
 
 (defn confirm-bindings [env names]
   (doseq [name names]
-    (let [env (merge env {:ns (@namespaces *ns*)})
+    (let [env (merge env {:ns (the-ns *ns*)})
           ev (resolve-existing-var env name)]
-      (when (not (-> ev :dynamic))
+      (when (not (-> ev :meta :dynamic))
         (warning env
           (str (:name ev) " not declared ^:dynamic"))))))
  
