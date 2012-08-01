@@ -1,8 +1,8 @@
 (ns clojure.lang.protocols)
 
-(defprotocol IMutableValue
-  (set-value! [this val])
-  (get-value [this]))
+(defprotocol IMutableField
+  (set-field! [this val])
+  (get-field [this]))
 
 (defprotocol IMeta
   (-meta [o]))
