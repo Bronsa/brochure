@@ -1,14 +1,30 @@
 (ns clojure.lang.ns
   (:refer-clojure :exclude [*ns* find-ns ns-aliases ns-unalias the-ns ns-map ns-resolve])
   (:require [clojure.lang.runtime :refer [*ns*]])
-  (:import (clojure.lang RT Var)))
+  (:import (clojure.lang RT Var ILookup IReference)))
 
-;;TODO Areference
-(defrecord Namespace [name mappings aliases]
+(deftype Namespace [name mappings aliases ^:unsynchronized-mutable meta]
   Object
-  (toString [this] (str name)))
+  (toString [this] (str name))
 
-;; import becomes an alias to alias
+  ILookup
+  (valAt [this k]
+    (.valAt this k nil))
+  (valAt [this k not-found]
+    (case k
+      :name name
+      :mappings mappings
+      :aliases aliases
+      :meta (meta this)))
+  
+  IReference
+  (meta [this]
+    (locking this meta))
+  (alterMeta [this f args]
+    (locking this (set! meta (apply f meta args))))
+  (resetMeta [this m]
+    (locking this (set! meta m))))
+
 (def default-aliases
   '{Boolean                         java.lang.Boolean
     Byte                            java.lang.Byte
@@ -108,7 +124,7 @@
     SuppressWarnings                java.lang.SuppressWarnings})
 
 (defn make-ns [name]
-  (->Namespace name {} default-aliases))
+  (->Namespace name {} default-aliases nil))
 
 (defonce namespaces (atom {'clojure.core (make-ns 'clojure.core)
                            'user         (make-ns 'user)}))
