@@ -130,9 +130,9 @@
   #_ (throw (ReaderException. (get-line rdr) (apply str msg))))
 
 (defn macro-terminating? [ch]
-  (and (not (= \# ch))
-       (not (= \' ch))
-       ;(not= ch \:) ;; why?
+  (and (not= \# ch)
+       (not= \' ch)
+       ;;(not= ch \:) ;; why?
        (macros ch)))
 
 (defn ^String read-token
@@ -545,7 +545,7 @@
       ret
       (let [g (garg n)]
         (set! arg-env (assoc arg-env n g))
-        g))       ;; set! returns the value
+        g))
     (throw (IllegalStateException. "Arg literal not in #()")))) ;; should never hit this
 
 (declare read-symbol)
