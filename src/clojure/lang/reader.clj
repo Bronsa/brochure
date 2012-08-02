@@ -137,13 +137,21 @@
 
 (defn ^String read-token
   [rdr initch]
-  (loop [sb (doto (StringBuilder.) (.append initch))
-         ch (peek-char rdr)]
-    (if (or (nil? ch)
-            (whitespace? ch)
-            (macro-terminating? ch))
-      (.toString sb)
-      (recur (doto sb (.append (read-char rdr))) (peek-char rdr)))))
+  (cond
+    (not initch)
+    (reader-error rdr "EOF while reading")
+
+    (whitespace? initch)
+    ""
+    
+    :else
+    (loop [sb (doto (StringBuilder.) (.append initch))
+           ch (peek-char rdr)]
+      (if (or (nil? ch)
+              (whitespace? ch)
+              (macro-terminating? ch))
+        (.toString sb)
+        (recur (doto sb (.append (read-char rdr))) (peek-char rdr))))))
 
 (defn skip-line
   "Advances the reader to the end of a line. Returns the reader"
@@ -386,14 +394,14 @@
   (loop [sb (StringBuilder.)
          ch (read-char reader)]
     (cond
-     (nil? ch) (reader-error reader "EOF while reading string")
-     (= \\ ch) (recur (doto sb (.append (escape-char sb reader)))
-                        (read-char reader))
-     (= \" ch) (.toString sb)
-     :default (recur (doto sb (.append ch)) (read-char reader)))))
+      (nil? ch) (reader-error reader "EOF while reading string")
+      (= \\ ch) (recur (doto sb (.append (escape-char sb reader)))
+                       (read-char reader))
+      (= \" ch) (.toString sb)
+      :default (recur (doto sb (.append ch)) (read-char reader)))))
 
 (defn- parse-symbol [^String token]
-  (when (not (numeric? (.charAt token 0)))
+  (when (not= "" token)
     (let [ns-idx (.indexOf token "/")
           ns (if (not (= -1 ns-idx)) (.substring token 0 ns-idx))]
       (if (nil? ns)
@@ -401,15 +409,16 @@
         (when (not (= (inc ns-idx) (count token)))
           (let [sym (.substring token (inc ns-idx))]
             (when (and (not (numeric? (.charAt sym 0)))
+                       (not= sym "")
                        (or (= sym "/")
                            (= -1 (.indexOf sym "/"))))
               [ns sym])))))))
 
 (defn read-symbol
   [rdr initch]
-  (let [token (read-token rdr initch)]
+  (when-let [token (read-token rdr initch)]
     (case token
-
+      
       ;; special symbols
       "nil" nil
       "true" true
@@ -425,7 +434,7 @@
   (let [token (read-token reader (read-char reader))
         s (parse-symbol token)]
     (if (and s
-             (= -1 (.indexOf token (int \.))))
+             (= -1 (.indexOf token "::")))
       (let [^String ns (s 0)
             ^String name (s 1)]
         (if (= \: (.charAt token 0))
