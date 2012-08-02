@@ -524,10 +524,10 @@
           args (if rargs
                  (let [higharg (key (first rargs))]
                    (if (pos? higharg)
-                     (let [args (loop [i 0 args []]
+                     (let [args (loop [i 1 args []]
                                   (if (> i higharg)
                                     args
-                                    (recur (inc i) (conj args (get rargs i)))))
+                                    (recur (inc i) (conj args (get arg-env i)))))
                            args (if (arg-env -1)
                                   (conj args '& (arg-env -1))
                                   args)]
@@ -543,7 +543,9 @@
   (if arg-env
     (if-let [ret (arg-env n)]
       ret
-      (set! arg-env (assoc arg-env n (garg n)))) ;; set! returns the value
+      (let [g (garg n)]
+        (set! arg-env (assoc arg-env n g))
+        g))       ;; set! returns the value
     (throw (IllegalStateException. "Arg literal not in #()")))) ;; should never hit this
 
 (declare read-symbol)
@@ -611,13 +613,13 @@
   (and (instance? ISeq form)
        (= (first form) 'unquote)))
 
-(defn- expand-list [seq]
-  (loop [s seq r (transient [])]
+(defn- expand-list [s]
+  (loop [s s r (transient [])]
     (if s
       (let [item (first s)
             ret (conj! r
                        (cond
-                         (unquote? item)          (list 'list (second item))
+                         (unquote? item)          (list 'clojure.core/list (second item))
                          (unquote-splicing? item) (second item)
                          :else                    (list (syntax-quote item))))]
         (recur (next s) ret))
@@ -634,10 +636,11 @@
   (if-not gensym-env
     (throw (IllegalStateException. "Gensym literal not in syntax-quote")))
   (or (get gensym-env sym)
-      (set! gensym-env (assoc gensym-env
-                         (symbol (str (subs (name sym)
-                                            0 (dec (count (name sym))))
-                                      "__" (RT/nextID) "__auto__"))))))
+      (let [gs (symbol (str (subs (name sym)
+                                  0 (dec (count (name sym))))
+                            "__" (RT/nextID) "__auto__"))]
+        (set! gensym-env (assoc gensym-env sym gs))
+        gs)))
 
 (defn- resolve-symbol [s]
   (if (pos? (.indexOf (name s) "."))
@@ -683,17 +686,23 @@
     (unquote? form) (second form)
     (unquote-splicing? form) (throw (IllegalStateException. "splice not in list"))
 
-    (instance? IPersistentCollection)
+    (instance? IPersistentCollection form)
     (cond
       (instance? IRecord form) form
-      (map? form) (list 'apply 'hash-map (list 'seq (cons 'concat (expand-list (seq (flatten-map form))))))
-      (vector? form) (list 'apply 'vector (list 'seq (cons 'concat (expand-list (seq form)))))
-      (set? form) (list 'apply 'hash-set (list 'seq (cons 'concat (expand-list (seq form)))))
+      (map? form) (list 'clojure.core/apply 'clojure.core/hash-map
+                        (list 'clojure.core/seq (cons 'clojure.core/concat (expand-list
+                                                                            (seq (flatten-map form))))))
+      (vector? form) (list 'clojure.core/apply 'clojure.core/vector
+                           (list 'clojure.core/seq (cons 'clojure.core/concat
+                                                         (expand-list (seq form)))))
+      (set? form) (list 'clojure.core/apply 'clojure.core/hash-set
+                        (list 'clojure.core/seq (cons 'clojure.core/concat
+                                                      (expand-list (seq form)))))
       (or (instance? ISeq form) (list? form))
       (let [seq (seq form)]
         (if seq
-          (list 'seq (cons 'concat (expand-list seq)))
-          (cons 'list nil)))
+          (list 'cloure.core/seq (cons 'concat (expand-list seq)))
+          (cons 'clojure.core/list nil)))
       :else (throw (UnsupportedOperationException. "Unknown Collection type")))
 
     (or (keyword? form)
@@ -711,7 +720,7 @@
           ret (syntax-quote form)]
       (if (and (instance? IObj form)
                (dissoc (meta form) :line))
-        (list 'with-meta ret (syntax-quote (meta form)))
+        (list 'clojure.core/with-meta ret (syntax-quote (meta form)))
         ret))))
 
 (defn macros [c]
