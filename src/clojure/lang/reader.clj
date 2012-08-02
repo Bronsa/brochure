@@ -137,14 +137,9 @@
 
 (defn ^String read-token
   [rdr initch]
-  (cond
-    (not initch)
+  (if (not initch)
     (reader-error rdr "EOF while reading")
-
-    (whitespace? initch)
-    ""
     
-    :else
     (loop [sb (doto (StringBuilder.) (.append initch))
            ch (peek-char rdr)]
       (if (or (nil? ch)
@@ -431,21 +426,24 @@
 
 (defn read-keyword
   [reader initch]
-  (let [token (read-token reader (read-char reader))
-        s (parse-symbol token)]
-    (if (and s
-             (= -1 (.indexOf token "::")))
-      (let [^String ns (s 0)
-            ^String name (s 1)]
-        (if (= \: (.charAt token 0))
-          (if ns
-            (let [ns (resolve-ns (symbol (.substring ns 1)))]
+  (let [ch (read-char reader)]
+    (if (not (whitespace? ch))
+      (let [token (read-token reader ch)
+            s (parse-symbol token)]
+        (if (and s
+                 (= -1 (.indexOf token "::")))
+          (let [^String ns (s 0)
+                ^String name (s 1)]
+            (if (= \: (.charAt token 0))
               (if ns
-                (keyword (str ns) name)
-                (reader-error reader "Invalid token: :" token)))
-            (keyword (str *ns*) (.substring name 1)))
-          (keyword ns name)))
-      (reader-error reader "Invalid token: :" token))))
+                (let [ns (resolve-ns (symbol (.substring ns 1)))]
+                  (if ns
+                    (keyword (str ns) name)
+                    (reader-error reader "Invalid token: :" token)))
+                (keyword (str *ns*) (.substring name 1)))
+              (keyword ns name)))
+          (reader-error reader "Invalid token: :" token)))
+      (reader-error reader "Invalid token: :"))))
 
 (defn desugar-meta
   [f]
