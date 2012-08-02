@@ -1,7 +1,7 @@
 (ns clojure.lang.ns
   (:refer-clojure :exclude [*ns* intern find-ns ns-aliases ns-unalias the-ns ns-map ns-resolve])
   (:require [clojure.lang.runtime :refer [*ns* default-aliases]]
-            [clojure.lang.protocols :refer [IMeta IResetMeta]])
+            [clojure.lang.protocols :refer :all])
   (:import (clojure.lang RT Var ILookup)))
 
 (deftype Namespace [name mappings aliases ^:unsynchronized-mutable meta]
