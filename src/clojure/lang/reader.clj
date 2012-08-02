@@ -781,7 +781,7 @@
                              \{ [\} :short]
                              \[ [\] :extended]
                              nil)]
-      (let [entries (to-array (read-delimited-list rdr end-ch))
+      (let [entries (to-array (read-delimited-list ch rdr end-ch))
             all-ctors (.getConstructors class)
             ctors-num (count all-ctors)]
         (case form
