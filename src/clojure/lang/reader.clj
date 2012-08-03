@@ -528,11 +528,11 @@
           args (if rargs
                  (let [higharg (key (first rargs))]
                    (if (pos? higharg)
-                     (let [args (loop [i 1 args []]
+                     (let [args (loop [i 1 args (transient [])]
                                   (if (> i higharg)
-                                    args
-                                    (recur (inc i) (conj args (or (get arg-env i)
-                                                                  (garg i))))))
+                                    (persistent! args)
+                                    (recur (inc i) (conj! args (or (get arg-env i)
+                                                                   (garg i))))))
                            args (if (arg-env -1)
                                   (conj args '& (arg-env -1))
                                   args)]
@@ -576,23 +576,24 @@
       (RT/classForName (.toString ^Symbol o))
       (if (instance? IPersistentList o)
         (let [fs (first o)
+              o (rest o)
               fs-name (name fs)]
           (cond
-            (= fs 'var) (let [vs (second o)]
+            (= fs 'var) (let [vs (first o)]
                           (RT/var (namespace vs) (name vs)))
             (.endsWith fs-name ".")
-            (let [args (to-array (rest o))]
+            (let [args (to-array o)]
               (-> fs-name (subs 0 (dec (.length fs-name)))
                   RT/classForName (Reflector/invokeConstructor args)))
 
             (Compiler/namesStaticMember fs)
-            (let [args (to-array (rest o))]
+            (let [args (to-array o)]
               (Reflector/invokeStaticMethod (namespace fs) fs-name args))
 
             :else
             (let [v (maybe-resolve *ns* fs)]
               (if (instance? Var v)
-                (apply v (rest o))
+                (apply v o)
                 (reader-error rdr "Can't resolve " fs)))))
         (throw (IllegalArgumentException. "Unsupported #= form"))))))
 
@@ -630,7 +631,9 @@
   (loop [s (seq form) key-vals (transient [])]
     (if s
       (let [e (first s)]
-       (recur (next s) (conj key-vals (key e) (val e))))
+        (recur (next s) (-> key-vals
+                            (conj! (key e))
+                            (conj! (val e)))))
       (persistent! key-vals))))
 
 (defn- register-gensym [sym]
