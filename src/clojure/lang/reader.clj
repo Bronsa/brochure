@@ -513,6 +513,10 @@
 
 (def ^:private ^:dynamic arg-env nil)
 
+(defn- garg [n]
+  (symbol (str (if (= -1 n) "rest" (str "p" n))
+               "__" (RT/nextID) "#")))
+
 (defn read-fn
   [rdr _]
   (if arg-env
@@ -527,17 +531,14 @@
                      (let [args (loop [i 1 args []]
                                   (if (> i higharg)
                                     args
-                                    (recur (inc i) (conj args (get arg-env i)))))
+                                    (recur (inc i) (conj args (or (get arg-env i)
+                                                                  (garg i))))))
                            args (if (arg-env -1)
                                   (conj args '& (arg-env -1))
                                   args)]
                        args)))
                  [])]
       (list 'fn* args form))))
-
-(defn- garg [n]
-  (symbol (str (if (= -1 n) "rest" (str "p" n))
-               "__" (RT/nextID) "#")))
 
 (defn register-arg [n]
   (if arg-env
@@ -701,7 +702,7 @@
       (or (instance? ISeq form) (list? form))
       (let [seq (seq form)]
         (if seq
-          (list 'cloure.core/seq (cons 'concat (expand-list seq)))
+          (list 'cloure.core/seq (cons 'clojure.core/concat (expand-list seq)))
           (cons 'clojure.core/list nil)))
       :else (throw (UnsupportedOperationException. "Unknown Collection type")))
 
@@ -729,7 +730,7 @@
     \: read-keyword
     \; read-comment
     \' (wrapping-reader 'quote)
-    \@ (wrapping-reader 'deref)
+    \@ (wrapping-reader 'clojure.core/deref)
     \^ read-meta
     \` read-syntax-quote ;;(wrapping-reader 'syntax-quote)
     \~ read-unquote
