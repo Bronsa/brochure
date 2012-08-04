@@ -1,10 +1,12 @@
+(set! *warn-on-reflection* true)
+
 (ns brochure.lang.agent
   (:refer-clojure :exclude [release-pending-sends deftype])
   (:require [clojure.lang.protocols :refer :all]
             [clojure.lang.traits :refer [AReference AWatchable AValidable]]
             [clojure.lang.atom :refer [->Atom]]
             [brochure.def :refer [deftype]])
-  (:import (java.util.concurrent atomic.AtomicLong Executors ExecutorService  ThreadFactory
+  (:import (java.util.concurrent atomic.AtomicLong Executors ExecutorService ThreadFactory
                                  atomic.AtomicReference)))
 
 (defprotocol IError
@@ -169,5 +171,5 @@
         (count sends))
     0))
 
-(defn queue-count [agent]
-  (-> agent .action-queue .get .queue count))
+(defn queue-count [^Agent agent]
+  (count (.queue ^ActionQueue (.get ^AtomicReference (.action-queue agent)))))

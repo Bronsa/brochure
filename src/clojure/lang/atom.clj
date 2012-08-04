@@ -1,3 +1,5 @@
+(set! *warn-on-reflection* true)
+
 (ns clojure.lang.atom
   (:refer-clojure :exclude [deftype])
   (:require [clojure.lang.protocols :refer :all]
