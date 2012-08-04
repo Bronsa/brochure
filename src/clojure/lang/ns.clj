@@ -1,10 +1,15 @@
 (ns clojure.lang.ns
-  (:refer-clojure :exclude [*ns* intern find-ns ns-aliases ns-unalias the-ns ns-map ns-resolve])
+  (:refer-clojure :exclude [*ns* intern find-ns ns-aliases ns-unalias the-ns ns-map ns-resolve deftype])
   (:require [clojure.lang.runtime :refer [*ns* default-aliases]]
-            [clojure.lang.protocols :refer :all])
+            [clojure.lang.traits :refer [AReference]]
+            [clojure.lang.protocols :refer :all]
+            [brochure.def :refer [deftype]])
   (:import (clojure.lang RT Var ILookup)))
 
 (deftype Namespace [name mappings aliases ^:unsynchronized-mutable meta]
+
+  :defaults [AReference]
+  
   Object
   (toString [this] (str name))
 
@@ -16,15 +21,7 @@
       :name name
       :mappings mappings
       :aliases aliases
-      :meta (-meta this)))
-  
-  IMeta
-  (-meta [this]
-    (locking this meta))
-
-  IResetMeta
-  (-reset-meta! [this m]
-    (locking this (set! meta m))))
+      :meta (-meta this))))
 
 (defn make-ns [name]
   (->Namespace name {} default-aliases nil))
