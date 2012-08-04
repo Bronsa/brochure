@@ -31,7 +31,7 @@
 
 ;; (set! ActionQueue/empty ..)
 (def empty-action-queue
-  (ActionQueue. clojure.lang.PersistentQueue/EMPTY nil))
+  (-empty (ActionQueue. nil nil)))
 
 (def ^AtomicLong send-thread-pool-counter (AtomicLong. 0))
 (def ^AtomicLong send-off-thread-pool-counter (AtomicLong. 0))
@@ -56,7 +56,7 @@
   (.shutdown solo-executor)
   (.shutdown pooled-executor))
 
-(declare release-pending-sends-)
+(declare release-pending-sends)
 
 (deftype Agent [^:volatile-mutable state
                 ^AtomicReference action-queue ;;AtomicRefernce<ActionQueue> EMPTY in constructor
@@ -124,7 +124,7 @@
          (catch Throwable e
            (-set! error e)))
         (if-not (-deref error)
-          (release-pending-sends-)
+          (release-pending-sends)
           (do (.set nested nil)
               (if-let [error-handler (-error-handler agent)]
                 (try (error-handler agent error)
