@@ -34,10 +34,15 @@
       (assert (validator new-value) "Validator rejected reference state"))))
 
 (defn throw-arity [this n]
-  (let [name (-> this .getClass .getSmpleName)
+  (let [name (-> this .getClass .getSimpleName)
         suffix (.lastIndexOf name "__")
         elided-name (if (= suffix -1) name (.substring name 0 suffix))]
     (throw (clojure.lang.ArityException. n (.replace elided-name \_ \-)))))
+
+(defn gen-invoke [f]
+  (map (fn [args] (list '-invoke (vec (cons 'this args))
+                        (list f'this (count args))))
+       (cons [] (take-while seq (iterate rest (repeat 18 '_))))))
 
 (def AFn
   (list
@@ -49,9 +54,7 @@
    'java.lang.Runnable
    '(run [this] (-invoke this))
    'IFn
-   (map (fn [args] (list '-invoke (vec (cons 'this args))
-                         (list 'throw-arity 'this (count args))))
-        (cons [] (take-while seq (iterate rest (repeat 18 '_)))))
+   (gen-invoke `throw-arity)
    '(-apply [this arglist]
       (let [arglist-len (count arglist)] 
        (if (< arglist-len 19)
