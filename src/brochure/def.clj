@@ -29,8 +29,9 @@
 (defmacro deftype [name args & body]
   (if (= :defaults (first body))
     (let [body (next body)
-          [defaults abstracts-or-required] ((juxt filter remove)
-                                            seq? (map eval (first body)))
+          [defaults abstracts-or-required] ((juxt (partial map rest)
+                                                  (partial map first))
+                                            (map eval (first body)))
           [abstracts required] ((juxt remove (comp (partial mapcat identity) filter))
                                 vector? abstracts-or-required)
           separate (juxt (comp set (partial mapcat second))
@@ -38,12 +39,12 @@
           [protocols methods] (separate (map (partial (juxt filter remove) list?) defaults))
           methods  (if (> (count methods) 1)
                      (reduce (fn [acc cur] (merge-methods [acc cur])) methods)
-                     methods)]
+                     (first methods))]
       (if-let [err (validate-args args required)] 
         err
         (if (empty? abstracts)
           (let [[m p] ((juxt filter remove) list? (rest body))
-                protcools (into protocols p)]
+                protocols (into protocols p)]
             `(clojure.core/deftype ~name ~args
                ~@protocols
                ~@(merge-methods [methods m])))
