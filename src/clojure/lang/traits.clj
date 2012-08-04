@@ -1,3 +1,5 @@
+(set! *warn-on-reflection* true)
+
 (ns clojure.lang.traits
   (:require [brochure.def :refer [deftrait]]
             [clojure.lang.protocols :refer :all]))
@@ -33,7 +35,7 @@
     (when validator
       (assert (validator new-value) "Validator rejected reference state"))))
 
-(defn throw-arity [this n]
+(defn throw-arity [^Object this n]
   (let [name (-> this .getClass .getSimpleName)
         suffix (.lastIndexOf name "__")
         elided-name (if (= suffix -1) name (.substring name 0 suffix))]

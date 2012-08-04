@@ -1,7 +1,7 @@
 (set! *warn-on-reflection* true)
 
 (ns brochure.lang.agent
-  (:refer-clojure :exclude [release-pending-sends deftype])
+  (:refer-clojure :exclude [release-pending-sends deftype atom])
   (:require [clojure.lang.protocols :refer :all]
             [clojure.lang.traits :refer [AReference AWatchable AValidable]]
             [clojure.lang.atom :refer [atom]]
