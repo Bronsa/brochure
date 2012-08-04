@@ -45,19 +45,20 @@
           (cons [] (take-while seq (iterate rest (repeat 18 '_))))))
 
 (def AFn
-  (into 
-   (list
-    'java.util.concurrent.Callable
-    '(call [this]
-           (try (-invoke this)
-                (catch Exception e
-                  (throw e))))
-    'java.lang.Runnable
-    '(run [this] (-invoke this))
-    'IFn
-    '(-apply [this arglist]
-             (let [arglist-len (count arglist)] 
-               (if (< arglist-len 19)
-                 (eval `(-invoke ~this ~@arglist))
-                 (eval `(-invoke ~this ~@(take 19 arglist) '~(drop 19 arglist)))))))
-   (gen-invoke `throw-arity)))
+  (cons []
+        (into 
+         (list
+          'java.util.concurrent.Callable
+          '(call [this]
+                 (try (-invoke this)
+                      (catch Exception e
+                        (throw e))))
+          'java.lang.Runnable
+          '(run [this] (-invoke this))
+          'IFn
+          '(-apply [this arglist]
+                   (let [arglist-len (count arglist)] 
+                     (if (< arglist-len 19)
+                       (eval `(-invoke ~this ~@arglist))
+                       (eval `(-invoke ~this ~@(take 19 arglist) '~(drop 19 arglist)))))))
+         (gen-invoke `throw-arity))))

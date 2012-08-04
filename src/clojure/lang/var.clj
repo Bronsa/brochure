@@ -15,7 +15,7 @@
 (declare throw-arity)
 
 (def UnboundFn
-  (cons 'IFn
+  (cons []
     (gen-invoke `throw-arity)))
 
 (deftype UnboundVar [var]
