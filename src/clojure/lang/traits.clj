@@ -41,22 +41,23 @@
 
 (defn gen-invoke [f]
   (map (fn [args] (list '-invoke (vec (cons 'this args))
-                        (list f'this (count args))))
-       (cons [] (take-while seq (iterate rest (repeat 18 '_))))))
+                           (list f 'this (count args))))
+          (cons [] (take-while seq (iterate rest (repeat 18 '_))))))
 
 (def AFn
-  (list
-   'java.lang.Callable
-   '(call [this]
-     (try (-invoke this)
-       (catch Exception e
-         (throw e))))
-   'java.lang.Runnable
-   '(run [this] (-invoke this))
-   'IFn
-   (gen-invoke `throw-arity)
-   '(-apply [this arglist]
-      (let [arglist-len (count arglist)] 
-       (if (< arglist-len 19)
-         (eval `(-invoke ~this ~@arglist))
-         (eval `(-invoke ~this ~@(take 19 arglist) '~(drop 19 arglist))))))))
+  (into 
+   (list
+    'java.util.concurrent.Callable
+    '(call [this]
+           (try (-invoke this)
+                (catch Exception e
+                  (throw e))))
+    'java.lang.Runnable
+    '(run [this] (-invoke this))
+    'IFn
+    '(-apply [this arglist]
+             (let [arglist-len (count arglist)] 
+               (if (< arglist-len 19)
+                 (eval `(-invoke ~this ~@arglist))
+                 (eval `(-invoke ~this ~@(take 19 arglist) '~(drop 19 arglist)))))))
+   (gen-invoke `throw-arity)))

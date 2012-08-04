@@ -12,11 +12,10 @@
   (set-field! [this new-val] (set! value new-val))
   (get-field [this] value))
 
-(defn throw-arity [this n]
-  (throw (IllegalStateException. (str "Attempting to call unbound fn:" (.var this)))))
+(declare throw-arity)
 
 (def UnboundFn
-  (list 'IFn
+  (cons 'IFn
     (gen-invoke `throw-arity)))
 
 (deftype UnboundVar [var]
@@ -25,6 +24,9 @@
 
   Object
   (toString [this] (str "Unbound: " var)))
+
+(defn throw-arity [^UnboundVar this n]
+  (throw (IllegalStateException. (str "Attempting to call unbound fn:" (.var this)))))
 
 ;; (deftype Var [^:unsynchronized-mutable meta
 ;;               ^:volatile-mutable validator
