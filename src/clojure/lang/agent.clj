@@ -4,7 +4,7 @@
   (:refer-clojure :exclude [release-pending-sends deftype])
   (:require [clojure.lang.protocols :refer :all]
             [clojure.lang.traits :refer [AReference AWatchable AValidable]]
-            [clojure.lang.atom :refer [->Atom]]
+            [clojure.lang.atom :refer [atom]]
             [brochure.def :refer [deftype]])
   (:import (java.util.concurrent atomic.AtomicLong Executors ExecutorService ThreadFactory
                                  atomic.AtomicReference)))
@@ -116,21 +116,21 @@
   (run [this]
     (try
       (.set nested [])
-      (let [error (->Atom nil {} nil nil)]
+      (let [error (atom nil)]
         (try (let [old-value (-deref agent)
                    new-value (apply fn (-deref agent) args)]
                (-set! agent new-value)
                (-notify-watches agent old-value new-value))
          (catch Throwable e
-           (-set! error e)))
+           (-reset! error e)))
         (if-not (-deref error)
           (release-pending-sends)
           (do (.set nested nil)
               (if-let [error-handler (-error-handler agent)]
-                (try (error-handler agent error)
+                (try (error-handler agent (-deref error))
                      (catch Throwable _)))
               (if (= :continue (-error-mode agent))
-                (-set! error nil))))
+                (-reset! error nil))))
         (loop [popped false ^ActionQueue next nil]
           (if-not popped
             (let [^ActionQueue prior (.get ^AtomicReference (.action-queue agent))
