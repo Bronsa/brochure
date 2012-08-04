@@ -62,3 +62,9 @@
                        (eval `(-invoke ~this ~@arglist))
                        (eval `(-invoke ~this ~@(take 19 arglist) '~(drop 19 arglist)))))))
          (gen-invoke `throw-arity))))
+
+
+(deftrait AVMutable [^:volatile-mutable value]
+  IMutableField
+  (set-field! [this new-val] (set! value new-val))
+  (get-field [this] value))

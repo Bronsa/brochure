@@ -1,7 +1,7 @@
 (set! *warn-on-reflection* true)
 
 (ns clojure.lang.atom
-  (:refer-clojure :exclude [deftype])
+  (:refer-clojure :exclude [deftype atom swap!])
   (:require [clojure.lang.protocols :refer :all]
             [clojure.lang.traits :refer [AReference AWatchable AValidable]]
             [brochure.def :refer [deftype]])
@@ -30,3 +30,14 @@
     (when (.compareAndSet state old-value new-value)
       (-notify-watches this old-value new-value)
       true)))
+
+(defn atom
+  ([x] (->Atom (AtomicReference. x) nil nil nil))
+  ([x & {:keys [meta validator]}] (->Atom (AtomicReference. x) meta validator nil)))
+
+(defn swap!
+  [a f & args]
+  (let [old-value (-deref a)
+        new-value (apply f old-value args)]
+    (and (-compare-and-set! a old-value new-value)
+         new-value)))
