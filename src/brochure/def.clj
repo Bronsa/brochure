@@ -18,8 +18,9 @@
 
 (defn validate-args [provided required]
   (let [pr (set provided)
-        req (set required)]
-    (if-let [missing (remove pr req)]
+        req (set required)
+        missing (remove pr req)]
+    (if-not (empty? missing)
       `(throw (Exception. (str "deftype declaration is missing the following args: " ~@(map str missing)
                                ", required by one ")))
       (if (some true? (map mismatching-mutable? (filter req pr) req))
