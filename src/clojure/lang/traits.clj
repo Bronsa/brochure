@@ -32,3 +32,28 @@
   (-validate [_ new-value]
     (when validator
       (assert (validator new-value) "Validator rejected reference state"))))
+
+(defn throw-arity [this n]
+  (let [name (-> this .getClass .getSmpleName)
+        suffix (.lastIndexOf name "__")
+        elided-name (if (= suffix -1) name (.substring name 0 suffix))]
+    (throw (clojure.lang.ArityException. n (.replace elided-name \_ \-)))))
+
+(def AFn
+  (list
+   'java.lang.Callable
+   '(call [this]
+     (try (-invoke this)
+       (catch Exception e
+         (throw e))))
+   'java.lang.Runnable
+   '(run [this] (-invoke this))
+   'IFn
+   (map (fn [args] (list '-invoke (vec (cons 'this args))
+                         (list 'throw-arity 'this (count args))))
+        (cons [] (take-while seq (iterate rest (repeat 18 '_)))))
+   '(-apply [this arglist]
+      (let [arglist-len (count arglist)] 
+       (if (< arglist-len 19)
+         (eval `(-invoke ~this ~@arglist))
+         (eval `(-invoke ~this ~@(take 19 arglist) '~(drop 19 arglist))))))))
