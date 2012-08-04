@@ -29,20 +29,24 @@
 (defmacro deftype [name args & body]
   (if (= :defaults (first body))
     (let [body (next body)
-          [defaults abstracts] ((juxt (comp (partial mapcat identity) filter) remove)
-                                coll? (map eval (first body)))
-          [required defaults] ((juxt (comp (partial mapcat identity) filter) remove)
-                               vector? defaults)]
+          [defaults abstracts-or-required] ((juxt filter remove)
+                                            list? (map eval (first body)))
+          [abstracts required] ((juxt remove (comp (partial mapcat identity) filter))
+                                vector? abstracts-or-required)
+          separate (juxt (comp set (partial mapcat second))
+                          (partial map first))
+          [protocols methods] (separate (map (partial (juxt filter remove) list?) defaults))
+          methods  (if (> (count methods) 1)
+                     (reduce (fn [acc cur] (merge-methods [acc cur])) methods)
+                     methods)]
       (if-let [err (validate-args args required)] 
         err
         (if (empty? abstracts)
-          (let [[methods protocols] ((juxt (partial map first)
-                                           (comp set (partial mapcat second)))
-                                     (map (partial (juxt filter remove) list?)
-                                          [defaults (rest body)]))]
+          (let [[m p] ((juxt filter remove) list? (rest body))
+                protcools (into protocols p)]
             `(clojure.core/deftype ~name ~args
                ~@protocols
-               ~@(merge-methods methods)))
+               ~@(merge-methods [methods m])))
           `(throw (Exception. "not yet implemented :(")))))
     `(clojure.core/deftype ~name ~args ~@body)))
 
