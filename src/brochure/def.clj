@@ -30,7 +30,7 @@
   (if (= :defaults (first body))
     (let [body (next body)
           [defaults abstracts-or-required] ((juxt filter remove)
-                                            list? (map eval (first body)))
+                                            seq? (map eval (first body)))
           [abstracts required] ((juxt remove (comp (partial mapcat identity) filter))
                                 vector? abstracts-or-required)
           separate (juxt (comp set (partial mapcat second))
