@@ -53,12 +53,12 @@
         (into 
          (list
           'java.util.concurrent.Callable
-          '(call [this]
-                 (try (-invoke this)
-                      (catch Exception e
-                        (throw e))))
+          '(call [this] (-invoke this))
           'java.lang.Runnable
-          '(run [this] (-invoke this))
+          '(run [this]
+                (try (-invoke this)
+                     (catch Exception e
+                       (throw e))))
           'IFn
           '(-apply [this arglist]
                    (let [arglist-len (count arglist)] 
