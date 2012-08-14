@@ -159,6 +159,13 @@
     (-> var .thread-bound-depth .decrementAndGet))
   (set! dynamic-vals (.prev dynamic-vals)))
 
+(defn get-thread-bindings []
+  (let [bindings (.bindings dynamic-vals)]
+    (loop [[var box] (first bindings) rest (next bindings) ret {}]
+      (if rest
+        (recur (first rest) (next rest) (assoc ret var (get-field box)))
+        ret))))
+
 (defn intern
   ([ns sym] (-intern-sym ns sym))
   ([ns sym root] (intern ns sym root true))
