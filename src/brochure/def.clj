@@ -3,8 +3,8 @@
 
 (defn merge-methods [[defaults provideds]]
   (let [explicitize (fn [[fname args & body]]
-                      [[(meta fname) fname (list (meta args) (map meta args)) args] body])
-        implicitize (fn [[[_ name _ args] body]]
+                      [[(meta fname) fname (list (meta args) (map meta args)) (count args)] [args body]])
+        implicitize (fn [[[_ name _ _] [args body]]]
                       `(~name ~args ~@body))
         defaults (apply hash-map (mapcat explicitize defaults))
         provideds (apply hash-map (mapcat explicitize provideds))
