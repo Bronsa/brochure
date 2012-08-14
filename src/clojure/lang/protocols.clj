@@ -63,3 +63,11 @@
 
 (defprotocol IPending
   (-realized? [d]))
+
+(defprotocol INamespace
+  (-intern-sym [ns sym]))
+
+(defprotocol IVar
+  (-bind-root [var root])
+  (-alter-root [var fn args])
+  (-get-raw-root [var]))

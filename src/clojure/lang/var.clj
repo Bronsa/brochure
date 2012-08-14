@@ -49,14 +49,6 @@
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
-(defprotocol INamespace
-  (-intern-sym [ns sym]))
-
-(defprotocol IVar
-  (-bind-root [var root])
-  (-alter-root [var fn args])
-  (-get-raw-root [var]))
-
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
 (declare thread-bound? get-thread-binding)
@@ -149,12 +141,24 @@
       (and (thread-bound? var)
            (-> dynamic-vals .bindings (contains? var)))))
 
-;; (defn push-thread-bindings [bindings]
-;;   (let [bindings (.bindings dynamic-vals)]
-    
-;;     (set! dynamic-vals (make-frame bindings dynamic-vals))))
+(defn push-thread-bindings [bindings]
+  (let [bindings (.bindings dynamic-vals)]
+    (loop [[var val] (first (.bindings dynamic-vals)) rest (next (.bindings dynamic-vals)) bindings {}]
+      (if rest
+        (do (when-not (:dynamic (-meta var))
+              (throw (IllegalStateException. (str "Can't dynamically bind non-dynamic var: "
+                                                  (.ns var) "/" (.sym var)))))
+            (-validate var val)
+            (-> var .thread-bound-depth .incrementAndGet)
+            (recur (first rest) (next rest) (assoc bindings var (ThreadBox. (Thread/currentThread) val))))
+        (set! dynamic-vals (make-frame bindings dynamic-vals))))))
 
-;; (defn pop-thread-bindings [])
+(defn pop-thread-bindings []
+  (when-not (.prev dynamic-vals)
+    (throw (IllegalStateException. "Pop without matching push")))
+  (doseq [[var _] (.bindings dynamic-vals)]
+    (-> var .thread-bound-depth .decrementAndGet))
+  (set! dynamic-vals (.prev dynamic-vals)))
 
 (defn intern
   ([ns sym] (-intern-sym ns sym))
