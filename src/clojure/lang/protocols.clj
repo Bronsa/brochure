@@ -54,7 +54,8 @@
 (defprotocol IWatchable
   (-notify-watches [this oldval newval])
   (-add-watch [this key f])
-  (-remove-watch [this key]))
+  (-remove-watch [this key])
+  (-watches [this]))
 
 (defprotocol IAtomicallyMutable
   (-compare-and-set! [this old-value new-value])

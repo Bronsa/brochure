@@ -23,7 +23,8 @@
       (set! watches (assoc watches key f))))
   (-remove-watch [this key]
     (locking this
-      (set! watches (dissoc watches key)))))
+      (set! watches (dissoc watches key))))
+  (-watches [this] watches))
 
 (deftrait AValidable [^:volatile-mutable validator]
   IValidable
