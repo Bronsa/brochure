@@ -37,15 +37,16 @@
       (assert (validator new-value) "Validator rejected reference state"))))
 ;; (IllegalStateException. "Invalid reference state")
 
-(defn throw-arity [^Object this n]
-  (let [name (-> this .getClass .getSimpleName)
+(defn throw-arity [^Object this & args]
+  (let [n (count args)
+        name (-> this .getClass .getSimpleName)
         suffix (.lastIndexOf name "__")
         elided-name (if (= suffix -1) name (.substring name 0 suffix))]
     (throw (clojure.lang.ArityException. n (.replace elided-name \_ \-)))))
 
-(defn gen-invoke [f]
+(defn gen-invoke [f this]
   (map (fn [args] (list '-invoke (vec (cons 'this args))
-                           (list f 'this (count args))))
+                        (list* f this args)))
           (cons [] (take-while seq (iterate rest (repeat 18 '_))))))
 
 (def AFn
@@ -65,7 +66,7 @@
                      (if (< arglist-len 19)
                        (eval `(-invoke ~this ~@arglist))
                        (eval `(-invoke ~this ~@(take 19 arglist) '~(drop 19 arglist)))))))
-         (gen-invoke `throw-arity))))
+         (gen-invoke `throw-arity 'this))))
 
 
 (deftrait AVMutable [^:volatile-mutable value]

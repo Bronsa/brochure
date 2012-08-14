@@ -15,7 +15,7 @@
 
 (def UnboundFn
   (cons []
-    (gen-invoke `throw-arity)))
+    (gen-invoke `throw-arity 'this)))
 
 (defn var-str [ns sym]
   (if ns
@@ -41,17 +41,17 @@
 (defn clone-frame [^Frame frame]
   (make-frame (.bindings frame)))
 
-(defn throw-arity [^UnboundVar this n]
-  (throw (IllegalStateException. (str "Attempting to call unbound fn:" (.var this)))))
+(defn throw-arity [^UnboundVar this & _]
+  (throw (IllegalStateException. (str "Attempting to call unbound fn:" this))))
 
 (defn unbound? [v]
   (instance? UnboundVar v))
 
-;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-
-;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-
 (declare thread-bound? get-thread-binding)
+
+(def VarFn
+  (cons []
+    (gen-invoke '-invoke '(-deref this))))
 
 (deftype Var [sym ns
               ^AtomicInteger thread-bound-depth
@@ -60,7 +60,7 @@
               ^:volatile-mutable validator
               ^:volatile-mutable watches]
 
-  :defaults [AReference AWatchable AValidable]
+  :defaults [AReference AWatchable AValidable AFn VarFn]
 
   IVar
   (-bind-root [this new-root]
