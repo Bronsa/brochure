@@ -35,6 +35,7 @@
   (-validate [_ new-value]
     (when validator
       (assert (validator new-value) "Validator rejected reference state"))))
+;; (IllegalStateException. "Invalid reference state")
 
 (defn throw-arity [^Object this n]
   (let [name (-> this .getClass .getSimpleName)
