@@ -1,7 +1,8 @@
 (set! *warn-on-reflection* true)
 
 (ns clojure.lang.var
-  (:refer-clojure :exclude [deftype atom swap!])
+  (:refer-clojure :exclude [deftype atom swap! thread-bound? bound? get-thread-bindings
+                            push-thread-bindings pop-thread-bindings intern])
   (:require [clojure.lang.protocols :refer :all]
             [clojure.lang.traits :refer [AReference AWatchable AValidable AFn AVMutable gen-invoke]]
             [clojure.lang.atom :refer [atom swap!]]
@@ -48,6 +49,10 @@
   (instance? UnboundVar v))
 
 (declare thread-bound? get-thread-binding)
+
+(defn ^ThreadBox get-thread-binding [var]
+  (when (thread-bound? var)
+    ((.bindings dynamic-vals) var)))
 
 (def VarFn
   (cons []
@@ -110,14 +115,10 @@
     (locking this
       (set! meta (assoc m :name sym :ns ns)))))
 
-(def dynamic-vals (make-frame))
+(def ^Frame dynamic-vals (make-frame))
 
-(defn thread-bound? [var]
-  (pos? (.get (.thread-bound-depth var))))
-
-(defn get-thread-binding [var]
-  (when (thread-bound? var)
-    ((.bindings dynamic-vals) var)))
+(defn thread-bound? [^Var var]
+  (pos? (.get ^AtomicInteger (.thread-bound-depth var))))
 
 (defn get-thread-binding-frame []
   (if dynamic-vals
@@ -130,7 +131,7 @@
     (make-frame)))
 
 (defn reset-thread-binding-frame [frame]
-  (set! dynamic-vals ^Frame frame))
+  (set! dynamic-vals frame))
 
 (defn create-var
   ([] (create-var (UnboundVar. nil nil)))
@@ -142,21 +143,21 @@
            (-> dynamic-vals .bindings (contains? var)))))
 
 (defn push-thread-bindings [bindings]
-  (loop [[var val] (first bindings) rest (next bindings) bindings (.bindings dynamic-vals)]
+  (loop [[^Var var val] (first bindings) rest (next bindings) bindings (.bindings dynamic-vals)]
     (if rest
       (do (when-not (:dynamic (-meta var))
             (throw (IllegalStateException. (str "Can't dynamically bind non-dynamic var: "
                                                 (.ns var) "/" (.sym var)))))
           (-validate var val)
-          (-> var .thread-bound-depth .incrementAndGet)
+          (.incrementAndGet ^AtomicInteger (.thread-bound-depth var))
           (recur (first rest) (next rest) (assoc bindings var (ThreadBox. (Thread/currentThread) val))))
       (set! dynamic-vals (make-frame bindings dynamic-vals)))))
 
 (defn pop-thread-bindings []
   (when-not (.prev dynamic-vals)
     (throw (IllegalStateException. "Pop without matching push")))
-  (doseq [[var _] (.bindings dynamic-vals)]
-    (-> var .thread-bound-depth .decrementAndGet))
+  (doseq [[^Var var _] (.bindings dynamic-vals)]
+    (.decrementAndGet ^AtomicInteger (.thread-bound-depth var)))
   (set! dynamic-vals (.prev dynamic-vals)))
 
 (defn get-thread-bindings []
