@@ -142,16 +142,15 @@
            (-> dynamic-vals .bindings (contains? var)))))
 
 (defn push-thread-bindings [bindings]
-  (let [bindings (.bindings dynamic-vals)]
-    (loop [[var val] (first (.bindings dynamic-vals)) rest (next (.bindings dynamic-vals)) bindings {}]
-      (if rest
-        (do (when-not (:dynamic (-meta var))
-              (throw (IllegalStateException. (str "Can't dynamically bind non-dynamic var: "
-                                                  (.ns var) "/" (.sym var)))))
-            (-validate var val)
-            (-> var .thread-bound-depth .incrementAndGet)
-            (recur (first rest) (next rest) (assoc bindings var (ThreadBox. (Thread/currentThread) val))))
-        (set! dynamic-vals (make-frame bindings dynamic-vals))))))
+  (loop [[var val] (first bindings) rest (next bindings) bindings (.bindings dynamic-vals)]
+    (if rest
+      (do (when-not (:dynamic (-meta var))
+            (throw (IllegalStateException. (str "Can't dynamically bind non-dynamic var: "
+                                                (.ns var) "/" (.sym var)))))
+          (-validate var val)
+          (-> var .thread-bound-depth .incrementAndGet)
+          (recur (first rest) (next rest) (assoc bindings var (ThreadBox. (Thread/currentThread) val))))
+      (set! dynamic-vals (make-frame bindings dynamic-vals)))))
 
 (defn pop-thread-bindings []
   (when-not (.prev dynamic-vals)
