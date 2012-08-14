@@ -41,18 +41,25 @@
 (defn clone-frame [^Frame frame]
   (make-frame (.bindings frame)))
 
-;; a var is a thread local too
-;; (def dynamic-vals
-;;   (proxy [ThreadLocal] []
-;;     (initalValue [] (make-frame))))
-
-(def dynamic-vals (make-frame))
-
 (defn throw-arity [^UnboundVar this n]
   (throw (IllegalStateException. (str "Attempting to call unbound fn:" (.var this)))))
 
 (defn unbound? [v]
   (instance? UnboundVar v))
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+(defprotocol INamespace
+  (-intern-sym [ns sym]))
+
+(defprotocol IVar
+  (-bind-root [var root])
+  (-alter-root [var fn args])
+  (-get-raw-root [var]))
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+(declare thread-bound? get-thread-binding)
 
 (deftype Var [sym ns
               ^AtomicInteger thread-bound-depth
@@ -63,47 +70,97 @@
 
   :defaults [AReference AWatchable AValidable]
 
+  IVar
+  (-bind-root [this new-root]
+    (locking this
+      (-validate this new-root)
+      (let [old-root root]
+        (set! root new-root)
+        (-reset-meta! this (dissoc (-meta this) :macro))
+        (-notify-watches this old-root new-root))))
+  (-alter-root [this fn args]
+    (locking this
+      (let [new-root (apply fn root args)
+            old-root root]
+        (-validate this new-root)
+        (set! root new-root)
+        (-notify-watches this old-root new-root))))
+  (-get-raw-root [var] root)
+  
   Object
   (toString [_]
     (var-str ns sym))
 
-  IGet
-  (-get [this]
-    (if-not (.get thread-bound?)
-      root
-      (-deref this)))
-
   IDeref
   (-deref [this]
-    (if (pos? (.get thread-bound-depth))
-      (.val (get-thread-binding this))
+    (if (thread-bound? this)
+      (get-field (get-thread-binding this))
       root))
 
   IValidable
-  (-set-validator! [this f]
+  (-set-validator! [this new-validator]
     (when-not (unbound? root)
-      (-validate f root))
-    (set! validator f)))
+      (-validate new-validator root))
+    (set! validator new-validator))
+
+  ISettable
+  (-set! [this new-val]
+    (-validate this new-val)
+    (if-let [box (get-thread-binding this)]
+      (if (= (Thread/currentThread)
+             (.thread box))
+        (set-field! box new-val)
+        (throw (IllegalStateException. (str "Can't set!: " sym " from non-binding thread"))))
+      (throw (IllegalStateException. (str "Can't change/estabilish root bindings of: " sym " with set!")))))
+
+  IResetMeta
+  (-reset-meta! [this m]
+    (locking this
+      (set! meta (assoc m :name sym :ns ns)))))
+
+(def dynamic-vals (make-frame))
+
+(defn thread-bound? [var]
+  (pos? (.get (.thread-bound-depth var))))
+
+(defn get-thread-binding [var]
+  (when (thread-bound? var)
+    ((.bindings dynamic-vals) var)))
 
 (defn get-thread-binding-frame []
-  (let [f (.get dvals)]
-    (if f
-      f
-      (make-frame))))
+  (if dynamic-vals
+    dynamic-vals
+    (make-frame)))
 
 (defn clone-thread-binding-frame []
-  (let [f (.get dvals)]
-    (if f
-      (clone-frame f)
-      (make-frame))))
+  (if dynamic-vals
+    (clone-frame dynamic-vals)
+    (make-frame)))
 
 (defn reset-thread-binding-frame [frame]
-  (.set dvals ^Frame frame))
+  (set! dynamic-vals ^Frame frame))
 
 (defn create-var
   ([] (create-var (UnboundVar. nil nil)))
-  ([root] (Var. nil nil (AtomicBoolean. false) root {} nil nil)))
+  ([root] (Var. nil nil (AtomicInteger. 0) root {} nil nil)))
 
-;; (defn bound? [var]
-;;   (or (has-root? var)
-;;       (and (.get (.thread-bound? (-> dvals .get .bindings .containsKey this))))))
+(defn bound? [var]
+  (or (not (unbound? var))
+      (and (thread-bound? var)
+           (-> dynamic-vals .bindings (contains? var)))))
+
+;; (defn push-thread-bindings [bindings]
+;;   (let [bindings (.bindings dynamic-vals)]
+    
+;;     (set! dynamic-vals (make-frame bindings dynamic-vals))))
+
+;; (defn pop-thread-bindings [])
+
+(defn intern
+  ([ns sym] (-intern-sym ns sym))
+  ([ns sym root] (intern ns sym root true))
+  ([ns sym root replace-root?]
+     (let [dvout (intern ns sym)]
+       (when (or (unbound? dvout) replace-root?)
+         (-bind-root dvout root))
+       dvout)))
