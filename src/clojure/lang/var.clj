@@ -135,7 +135,9 @@
 
 (defn create-var
   ([] (create-var (UnboundVar. nil nil)))
-  ([root] (Var. nil nil (AtomicInteger. 0) root {} nil nil)))
+  ([root] (create-var nil nil root))
+  ([ns sym] (create-var ns sym nil))
+  ([ns sym root] (Var. sym ns (AtomicInteger. 0) root {} nil nil)))
 
 (defn bound? [var]
   (or (not (unbound? var))
