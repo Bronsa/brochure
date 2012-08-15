@@ -35,16 +35,18 @@
   (-intern-sym [this sym]
     (refer this sym (create-var this sym) true)))
 
-(defn refer [this sym v & [intern?]]
-  (when (namespace sym)
-    (throw (IllegalArgumentException. "Can't intern namespace-qualified symbol")))
-  (let [o ((ns-map this) sym)]
-    (if (and o (if intern? (= o v) (= (:ns o) this)))
-      o
-      (do
-        (when o 
-          (warn-or-fail-on-replace this sym o v))
-        (swap! (ns-map this) assoc sym v)))))
+(defn refer
+  ([sym v] (refer *ns* sym v))
+  ([this sym v & [intern?]]
+     (when (namespace sym)
+       (throw (IllegalArgumentException. "Can't intern namespace-qualified symbol")))
+     (let [o ((ns-map this) sym)]
+       (if (and o (if intern? (= o v) (= (:ns o) this)))
+         o
+         (do
+           (when o 
+             (warn-or-fail-on-replace this sym o v))
+           (swap! (ns-map this) assoc sym v))))))
 
 (defn make-ns [name]
   (Namespace. name (atom {}) (atom default-aliases) nil))
@@ -129,6 +131,7 @@
           (.getName c2))))
 
 (defn import-class
+  ([c] (import-class *ns* c))
   ([this ^Class c]
      (let [n (.getName c)]
        (import-class (symbol (.substring n (inc (.lastIndexOf n ".")))))))
@@ -158,20 +161,25 @@
     (swap! namespaces dissoc name)))
 
 
-(defn find-interned-var [this sym]
-  (let [o ((ns-map this) sym)]
-    (if (and o (instance? Var o) (= this (:ns o)))
-      o)))
+(defn find-interned-var
+  ([sym] (find-interned-var *ns* sym))
+  ([this sym]
+     (let [o ((ns-map this) sym)]
+       (if (and o (instance? Var o) (= this (:ns o)))
+         o))))
 
-(defn add-alias [this alias ns]
-  (when-not (and alias ns)
-    (throw (NullPointerException. "Expecting Symbol + Namespace")))
-  (when-not (contains? (ns-aliases this) alias)
-    (swap! (ns-aliases this) assoc alias ns))
-  (if-not (= ((ns-aliases this) alias) ns)
-    (throw (IllegalStateException.
-            (str "Alias: " alias "already exists in namespace "
-                 (:name this) ", aliasing" ((ns-aliases this) alias))))))
+(defn add-alias
+  ([alias ns] (add-alias *ns* alias ns))
+  ([this alias ns]
+     (when-not (and alias ns)
+       (throw (NullPointerException. "Expecting Symbol + Namespace")))
+     (when-not (contains? (ns-aliases this) alias)
+       (swap! (ns-aliases this) assoc alias ns))
+     (if-not (= ((ns-aliases this) alias) ns)
+       (throw (IllegalStateException.
+               (str "Alias: " alias "already exists in namespace "
+                    (:name this) ", aliasing" ((ns-aliases this) alias)))))))
 
-(defn remove-alias [this alias]
-  (swap! (ns-aliases this) dissoc alias))
+(defn remove-alias
+  ([alias] (remove-alias *ns* alias))
+  ([this alias] (swap! (ns-aliases this) dissoc alias)))
