@@ -12,7 +12,7 @@
   (:refer-clojure :exclude [macroexpand-1 *ns* the-ns])
   (:require [clojure.java.io :as io]
             [clojure.string :as string]
-            [clojure.lang.runtime :refer [*ns*]]
+            [clojure.lang.commons :refer [*ns*]]
             [clojure.lang.ns :refer [namespaces the-ns ns-alias]]))
 
 (do

@@ -1,6 +1,6 @@
 (set! *warn-on-reflection* true)
 
-(ns clojure.lang.runtime
+(ns clojure.lang.commons
   (:refer-clojure :exclude [*ns*]))
 
 (defonce ^:dynamic *ns* 'user)

@@ -1,11 +1,12 @@
 (ns clojure.lang.ns
   (:refer-clojure :exclude [*ns* intern find-ns ns-aliases ns-unalias the-ns ns-map ns-resolve deftype])
-  (:require [clojure.lang.runtime :refer [*ns* default-aliases]]
+  (:require [clojure.lang.commons :refer [*ns* default-aliases]]
             [clojure.lang.traits :refer [AReference]]
             [clojure.lang.protocols :refer :all]
             [brochure.def :refer [deftype]])
   (:import (clojure.lang RT Var ILookup)))
 
+;; mapping and aliases need to be atoms
 (deftype Namespace [name mappings aliases ^:unsynchronized-mutable meta]
 
   :defaults [AReference]
@@ -26,6 +27,7 @@
 (defn make-ns [name]
   (->Namespace name {} default-aliases nil))
 
+;; ConcurrentHashMap
 (defonce namespaces (atom {'clojure.core (make-ns 'clojure.core)
                            'user         (make-ns 'user)}))
 

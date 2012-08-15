@@ -2,7 +2,7 @@
 
 (ns clojure.lang.reader
   (:refer-clojure :exclude [read read-line read-string *ns* ns-map the-ns])
-  (:require [clojure.lang.runtime :refer [*ns*]]
+  (:require [clojure.lang.commons :refer [*ns*]]
             [clojure.lang.ns :refer [resolve-ns ns-map the-ns maybe-resolve]])
   (:import (clojure.lang BigInt Numbers PersistentHashMap PersistentHashSet IMeta ISeq
                          RT IReference Symbol IPersistentList Reflector Var Symbol Keyword IObj
