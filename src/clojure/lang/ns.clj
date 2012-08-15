@@ -84,6 +84,7 @@
 (defn ns-unalias [ns sym]
   (swap! (the-ns ns) update-in [:aliases] dissoc sym))
 
+;; lookupAlias
 (defn ns-alias
   ([sym] (ns-alias *ns* sym))
   ([ns sym] ((ns-aliases ns) sym)))
@@ -99,7 +100,7 @@
   ([ns sym]
      (when-let [o ((ns-map ns) sym)]
        (when (and (instance? Var o)
-                  (= ns (:name (:ns ^Var o))))
+                  (= ns (:name (:ns o))))
          o))))
 
 (defn maybe-resolve [ns sym]
@@ -142,3 +143,35 @@
          c
          (throw (IllegalStateException.
                  (str sym " already refers to: " c " in namespace " (:name this))))))))
+
+(defn find-or-create [name]
+  (if-let [ns (find-ns name)]
+    ns
+    (let [new-ns (make-ns name)]
+      (swap! namespaces #(if (contains? % %2)
+                           %2
+                           (assoc % %2 %3)) name new-ns))))
+
+(defn remove-ns [name]
+  (if (= name 'clojure.core)
+    (throw (IllegalArgumentException. "Cannot remove clojure.core"))
+    (swap! namespaces dissoc name)))
+
+
+(defn find-interned-var [this sym]
+  (let [o ((ns-map this) sym)]
+    (if (and o (instance? Var o) (= this (:ns o)))
+      o)))
+
+(defn add-alias [this alias ns]
+  (when-not (and alias ns)
+    (throw (NullPointerException. "Expecting Symbol + Namespace")))
+  (when-not (contains? (ns-aliases this) alias)
+    (swap! (ns-aliases this) assoc alias ns))
+  (if-not (= ((ns-aliases this) alias) ns)
+    (throw (IllegalStateException.
+            (str "Alias: " alias "already exists in namespace "
+                 (:name this) ", aliasing" ((ns-aliases this) alias))))))
+
+(defn remove-alias [this alias]
+  (swap! (ns-aliases this) dissoc alias))
