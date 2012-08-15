@@ -25,7 +25,7 @@
       :meta (-meta this))))
 
 (defn make-ns [name]
-  (->Namespace name {} default-aliases nil))
+  (Namespace. name (atom {}) (atom default-aliases) nil))
 
 ;; ConcurrentHashMap
 (defonce namespaces (atom {'clojure.core (make-ns 'clojure.core)
@@ -44,16 +44,13 @@
   (swap! namespaces assoc name ns))
 
 (defn ns-aliases [ns]
-  (:aliases (the-ns ns)))
+  @(:aliases (the-ns ns)))
 
 (defn ns-map [ns]
-  (:mappings (the-ns ns)))
+  @(:mappings (the-ns ns)))
 
 (defn ns-unalias [ns sym]
-  (let [ns (the-ns ns)
-        unaliased (assoc ns :aliases
-                         (dissoc (ns-aliases ns) sym))]
-    (reset! namespace unaliased)))
+  (swap! (the-ns ns) update-in [:aliases] dissoc sym))
 
 (defn ns-alias
   ([sym] (ns-alias *ns* sym))
