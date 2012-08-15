@@ -3,10 +3,13 @@
   (:require [clojure.lang.commons :refer [*ns* default-aliases]]
             [clojure.lang.traits :refer [AReference]]
             [clojure.lang.protocols :refer :all]
+            [clojure.lang.var :refer [create-var]]
             [brochure.def :refer [deftype]])
-  (:import (clojure.lang RT Var ILookup)))
+  (:import (clojure.lang RT ILookup
+                         var.Var)))
 
-;; mapping and aliases need to be atoms
+(declare ns-map)
+
 (deftype Namespace [name mappings aliases ^:unsynchronized-mutable meta]
 
   :defaults [AReference]
@@ -22,7 +25,8 @@
       :name name
       :mappings mappings
       :aliases aliases
-      :meta (-meta this))))
+      :meta (-meta this)
+      not-found)))
 
 (defn make-ns [name]
   (Namespace. name (atom {}) (atom default-aliases) nil))
