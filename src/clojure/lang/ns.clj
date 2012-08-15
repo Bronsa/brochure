@@ -1,3 +1,5 @@
+(set! *warn-on-reflection* true)
+
 (ns clojure.lang.ns
   (:refer-clojure :exclude [*ns* intern find-ns ns-aliases ns-unalias the-ns ns-map ns-resolve
                             deftype refer])
@@ -97,7 +99,7 @@
   ([ns sym]
      (when-let [o ((ns-map ns) sym)]
        (when (and (instance? Var o)
-                  (= ns (.name (.ns ^Var o))))
+                  (= ns (:name (:ns ^Var o))))
          o))))
 
 (defn maybe-resolve [ns sym]
@@ -125,14 +127,18 @@
        (= (.getName c1)
           (.getName c2))))
 
-
-(defn refer-class [this sym v]
-  (when (namespace sym)
-    (throw (IllegalArgumentException. "Can't intern namespace-qualified symbol")))
-  (let [c ((ns-map this) sym)
-        c (or (when (or (not c) (different-instances-of-same-class-name? c v))
-                (swap! (ns-map this) assoc sym v))
-              c)]
-    (if (= v c)
-      c
-      (throw (IllegalStateException. (str sym " already refers to: " c " in namespace " (:name this)))))))
+(defn import-class
+  ([this ^Class c]
+     (let [n (.getName c)]
+       (import-class (symbol (.substring n (inc (.lastIndexOf n ".")))))))
+  ([this sym v]
+     (when (namespace sym)
+       (throw (IllegalArgumentException. "Can't intern namespace-qualified symbol")))
+     (let [c ((ns-map this) sym)
+           c (or (when (or (not c) (different-instances-of-same-class-name? c v))
+                   (swap! (ns-map this) assoc sym v))
+                 c)]
+       (if (= v c)
+         c
+         (throw (IllegalStateException.
+                 (str sym " already refers to: " c " in namespace " (:name this))))))))
