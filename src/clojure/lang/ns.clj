@@ -110,6 +110,9 @@
                   (= ns (:name (:ns o))))
          o))))
 
+(defonce ns-var (intern (the-ns 'clojure.core) 'ns false))
+(defonce in-ns-var (intern (the-ns 'clojure.core) 'in-ns false))
+
 (defn maybe-resolve [ns sym]
   (if-not (nil? (namespace sym))
     (when-let [ns (resolve-ns ns sym)]
@@ -119,9 +122,9 @@
             (= \[ (-> sym name (.charAt 0))))
       (RT/classForName (name sym))
       (if (= sym 'ns)
-        #'ns
+        ns-var
         (if (= sym 'in-ns)
-          #'in-ns
+          in-ns-var
           ((ns-map ns) sym))))))
 
 (defn ns-resolve
