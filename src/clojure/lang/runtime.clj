@@ -1,4 +1,5 @@
 (ns clojure.lang.runtime
-  (:require [clojure.lang.namespace :as ns]))
+  (:refer-clojure :exclude [*ns*])
+  (:require [clojure.lang.ns :as ns]))
 
 (def *ns* ns/*ns*)

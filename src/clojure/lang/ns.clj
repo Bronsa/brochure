@@ -2,7 +2,7 @@
 
 (ns clojure.lang.ns
   (:refer-clojure :exclude [*ns* intern find-ns ns-aliases ns-unalias the-ns ns-map ns-resolve
-                            deftype refer intern])
+                            deftype refer intern remove-ns])
   (:require [clojure.lang.commons :refer [warning default-aliases]]
             [clojure.lang.traits :refer [AReference]]
             [clojure.lang.protocols :refer :all]
@@ -40,13 +40,13 @@
   ([this sym v & [intern?]]
      (when (namespace sym)
        (throw (IllegalArgumentException. "Can't intern namespace-qualified symbol")))
-     (let [o ((ns-map this) sym)]
+     (let [o ((ns-map (:name this)) sym)]
        (if (and o (if intern? (= o v) (= (:ns o) this)))
          o
          (do
            (when o 
              (warn-or-fail-on-replace this sym o v))
-           (swap! (ns-map this) assoc sym v))))))
+           ((swap! (:mappings this) assoc sym v) v))))))
 
 (defn make-ns [name]
   (Namespace. name (atom {}) (atom default-aliases) nil))
@@ -75,7 +75,7 @@
              ", being replaced by: " v)))
 
 (defn set-namespace [name ns]
-  (swap! namespaces assoc name ns))
+  ((swap! namespaces assoc name ns) name))
 
 (defn ns-aliases [ns]
   @(:aliases (the-ns ns)))
@@ -83,12 +83,10 @@
 (defn ns-map [ns]
   @(:mappings (the-ns ns)))
 
-;;;
 (when-not ((ns-map 'clojure.core) '*ns*)
   (intern (the-ns 'clojure.core) '*ns* (the-ns 'user))
   (def *ns* ((ns-map 'clojure.core) '*ns*))
   (-reset-meta! *ns* {:dynamic true}))
-;;;
 
 (defn ns-unalias [ns sym]
   (swap! (the-ns ns) update-in [:aliases] dissoc sym))
@@ -147,7 +145,7 @@
        (throw (IllegalArgumentException. "Can't intern namespace-qualified symbol")))
      (let [c ((ns-map this) sym)
            c (or (when (or (not c) (different-instances-of-same-class-name? c v))
-                   (swap! (ns-map this) assoc sym v))
+                   ((swap! (:mappings this) assoc sym v) sym))
                  c)]
        (if (= v c)
          c
@@ -158,9 +156,9 @@
   (if-let [ns (find-ns name)]
     ns
     (let [new-ns (make-ns name)]
-      (swap! namespaces #(if (contains? % %2)
-                           %2
-                           (assoc % %2 %3)) name new-ns))))
+      ((swap! namespaces #(if (contains? % %2)
+                            %2
+                            (assoc % %2 %3)) name new-ns) name))))
 
 (defn remove-ns [name]
   (if (= name 'clojure.core)
@@ -181,7 +179,7 @@
      (when-not (and alias ns)
        (throw (NullPointerException. "Expecting Symbol + Namespace")))
      (when-not (contains? (ns-aliases this) alias)
-       (swap! (ns-aliases this) assoc alias ns))
+       (swap! (:aliases this) assoc alias ns))
      (if-not (= ((ns-aliases this) alias) ns)
        (throw (IllegalStateException.
                (str "Alias: " alias "already exists in namespace "
@@ -189,4 +187,4 @@
 
 (defn remove-alias
   ([alias] (remove-alias *ns* alias))
-  ([this alias] (swap! (ns-aliases this) dissoc alias)))
+  ([this alias] (swap! (:aliases this) dissoc alias)))
