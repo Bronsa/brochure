@@ -12,7 +12,8 @@
   (:refer-clojure :exclude [macroexpand-1 *ns* the-ns])
   (:require [clojure.java.io :as io]
             [clojure.string :as string]
-            [clojure.lang.commons :refer [*ns* warning]]
+            [clojure.lang.runtime :refer [*ns*]]
+            [clojure.lang.commons :refer [warning]]
             [clojure.lang.ns :refer [namespaces the-ns ns-alias]]))
 
 (do
@@ -22,7 +23,7 @@
   (refer 'clojure.core :only '[*warn-on-undeclared*]))
 
 (defn empty-env []
-  {:ns (the-ns *ns*) :context :statement :locals {}})
+  {:ns *ns* :context :statement :locals {}})
 
 (defn confirm-var-exists [env ns sym]
   (when *warn-on-undeclared*

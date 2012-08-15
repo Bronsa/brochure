@@ -2,7 +2,7 @@
 
 (ns clojure.lang.reader
   (:refer-clojure :exclude [read read-line read-string *ns* ns-map the-ns])
-  (:require [clojure.lang.commons :refer [*ns*]]
+  (:require [clojure.lang.runtime :refer [*ns*]]
             [clojure.lang.ns :refer [resolve-ns ns-map the-ns maybe-resolve]])
   (:import (clojure.lang BigInt Numbers PersistentHashMap PersistentHashSet IMeta ISeq
                          RT IReference Symbol IPersistentList Reflector Var Symbol Keyword IObj
@@ -660,7 +660,7 @@
           (symbol (.getName ^Class o))
           (if (instance? Var o)
             (symbol (-> ^Var o .ns .name name) (-> ^Var o .sym name))))
-        (symbol (name *ns*) (name s))))))
+        (symbol (:name *ns*) (name s))))))
 
 (defn syntax-quote [form]
   (cond
@@ -669,7 +669,7 @@
     (instance? Symbol form)
     (list 'quote
           (if (namespace form)
-            (let [class? ((ns-map (the-ns *ns*))
+            (let [class? ((ns-map *ns*)
                           (symbol (namespace form)))]
               (if (instance? Class class)
                 (symbol (.getName ^Class class?) (name form))

@@ -2,16 +2,16 @@
 
 (ns clojure.lang.ns
   (:refer-clojure :exclude [*ns* intern find-ns ns-aliases ns-unalias the-ns ns-map ns-resolve
-                            deftype refer])
-  (:require [clojure.lang.commons :refer [*ns* warning default-aliases]]
+                            deftype refer intern])
+  (:require [clojure.lang.commons :refer [warning default-aliases]]
             [clojure.lang.traits :refer [AReference]]
             [clojure.lang.protocols :refer :all]
-            [clojure.lang.var :refer [create-var]]
+            [clojure.lang.var :refer [create-var intern]]
             [brochure.def :refer [deftype]])
   (:import (clojure.lang RT ILookup
                          var.Var)))
 
-(declare ns-map warn-or-fail-on-replace refer)
+(declare ns-map warn-or-fail-on-replace refer *ns*)
 
 (deftype Namespace [name mappings aliases ^:unsynchronized-mutable meta]
 
@@ -82,6 +82,13 @@
 
 (defn ns-map [ns]
   @(:mappings (the-ns ns)))
+
+;;;
+(when-not ((ns-map 'clojure.core) '*ns*)
+  (intern (the-ns 'clojure.core) '*ns* (the-ns 'user))
+  (def *ns* ((ns-map 'clojure.core) '*ns*))
+  (-reset-meta! *ns* {:dynamic true}))
+;;;
 
 (defn ns-unalias [ns sym]
   (swap! (the-ns ns) update-in [:aliases] dissoc sym))
