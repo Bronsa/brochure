@@ -37,7 +37,9 @@
 
 (defn swap!
   [a f & args]
-  (let [old-value (-deref a)
-        new-value (apply f old-value args)]
-    (and (-compare-and-set! a old-value new-value)
-         new-value)))
+  (loop []
+    (let [old-value (-deref a)
+          new-value (apply f old-value args)]
+      (if (-compare-and-set! a old-value new-value)
+        new-value
+        (recur)))))
