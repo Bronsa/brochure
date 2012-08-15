@@ -1,5 +1,6 @@
 (ns clojure.lang.ns
-  (:refer-clojure :exclude [*ns* intern find-ns ns-aliases ns-unalias the-ns ns-map ns-resolve deftype])
+  (:refer-clojure :exclude [*ns* intern find-ns ns-aliases ns-unalias the-ns ns-map ns-resolve
+                            deftype refer])
   (:require [clojure.lang.commons :refer [*ns* warning default-aliases]]
             [clojure.lang.traits :refer [AReference]]
             [clojure.lang.protocols :refer :all]
@@ -8,7 +9,7 @@
   (:import (clojure.lang RT ILookup
                          var.Var)))
 
-(declare ns-map warn-or-fail-on-replace)
+(declare ns-map warn-or-fail-on-replace refer)
 
 (deftype Namespace [name mappings aliases ^:unsynchronized-mutable meta]
 
@@ -30,16 +31,18 @@
 
   INamespace
   (-intern-sym [this sym]
-    (when (namespace sym)
-      (throw (IllegalArgumentException. "Can't intern namespace-qualified symbol")))
-    (if-let [o ((ns-map this) sym)]
-      (if (= (:ns o) this)
-        o
-        (let [v (create-var this sym)]
-          (warn-or-fail-on-replace this sym o v)
-          (swap! (ns-map this) assoc sym v)))
-      (let [v (create-var this sym)]
-        (swap! (ns-map this) assoc sym v)))))
+    (refer this sym (make-var this sym) true)))
+
+(defn refer [this sym v & [intern?]]
+  (when (namespace sym)
+    (throw (IllegalArgumentException. "Can't intern namespace-qualified symbol")))
+  (let [o ((ns-map this) sym)]
+    (if (and o (if intern? (= o v) (= (:ns o) this)))
+      o
+      (do
+        (when o 
+          (warn-or-fail-on-replace this sym o v))
+          (swap! (ns-map this) assoc sym v)))))
 
 (defn make-ns [name]
   (Namespace. name (atom {}) (atom default-aliases) nil))
