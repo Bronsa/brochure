@@ -8,7 +8,7 @@
   (:import (clojure.lang RT ILookup
                          var.Var)))
 
-(declare ns-map)
+(declare ns-map warn-or-fail-on-replace)
 
 (deftype Namespace [name mappings aliases ^:unsynchronized-mutable meta]
 
@@ -26,7 +26,20 @@
       :mappings mappings
       :aliases aliases
       :meta (-meta this)
-      not-found)))
+      not-found))
+
+  INamespace
+  (-intern-sym [this sym]
+    (when (namespace sym)
+      (throw (IllegalArgumentException. "Can't intern namespace-qualified symbol")))
+    (if-let [o ((ns-map this) sym)]
+      (if (= (:ns o) this)
+        o
+        (let [v (create-var this sym)]
+          (warn-or-fail-on-replace this sym o v)
+          (swap! (ns-map this) assoc sym v)))
+      (let [v (create-var this sym)]
+        (swap! (ns-map this) assoc sym v)))))
 
 (defn make-ns [name]
   (Namespace. name (atom {}) (atom default-aliases) nil))
@@ -43,6 +56,17 @@
     ns
     (or (find-ns ns)
         (throw (Exception. (str "Namespace " ns " not found"))))))
+
+(defn- warn-or-fail-on-replace [this sym o v]
+  (if (instance? Var o)
+    (let [ns (:ns o)]
+      (if-not (and (= ns this)
+                   (= ns (the-ns 'clojure.core)))
+        (throw (IllegalStateException.
+                (str sym " already refers to:" o " in namespace: " (:name this))))))
+    (binding [*out* *err*]
+      (println "WARNING: " sym " already refers to:" o " in namespace: " (:name this)
+               ", being replaced by: " v))))
 
 (defn set-namespace [name ns]
   (swap! namespaces assoc name ns))
