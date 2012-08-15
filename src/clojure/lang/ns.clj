@@ -31,7 +31,7 @@
 
   INamespace
   (-intern-sym [this sym]
-    (refer this sym (make-var this sym) true)))
+    (refer this sym (create-var this sym) true)))
 
 (defn refer [this sym v & [intern?]]
   (when (namespace sym)
@@ -42,7 +42,7 @@
       (do
         (when o 
           (warn-or-fail-on-replace this sym o v))
-          (swap! (ns-map this) assoc sym v)))))
+        (swap! (ns-map this) assoc sym v)))))
 
 (defn make-ns [name]
   (Namespace. name (atom {}) (atom default-aliases) nil))
@@ -119,3 +119,20 @@
   ([ns env sym]
      (when-not (contains? env sym)
        (maybe-resolve (the-ns ns) sym))))
+
+(defn different-instances-of-same-class-name? [^Class c1 ^Class c2]
+  (and (not= c1 c2)
+       (= (.getName c1)
+          (.getName c2))))
+
+
+(defn refer-class [this sym v]
+  (when (namespace sym)
+    (throw (IllegalArgumentException. "Can't intern namespace-qualified symbol")))
+  (let [c ((ns-map this) sym)
+        c (or (when (or (not c) (different-instances-of-same-class-name? c v))
+                (swap! (ns-map this) assoc sym v))
+              c)]
+    (if (= v c)
+      c
+      (throw (IllegalStateException. (str sym " already refers to: " c " in namespace " (:name this)))))))
