@@ -66,7 +66,17 @@
               ^:volatile-mutable watches]
 
   :defaults [AReference AWatchable AValidable AFn VarFn]
-
+  
+  ILookup
+  (valAt [this k]
+    (.valAt this k nil))
+  (valAt [this k not-found]
+    (case k
+      :name sym
+      :ns ns
+      :root root
+      :meta (-meta this))
+    
   IVar
   (-bind-root [this new-root]
     (locking this
