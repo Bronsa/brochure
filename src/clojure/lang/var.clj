@@ -7,7 +7,8 @@
             [clojure.lang.traits :refer [AReference AWatchable AValidable AFn AVMutable gen-invoke]]
             [clojure.lang.atom :refer [atom swap!]]
             [brochure.def :refer [deftype]])
-  (:import java.util.concurrent.atomic.AtomicInteger))
+  (:import java.util.concurrent.atomic.AtomicInteger
+           clojure.lang.ILookup))
 
 (deftype ThreadBox [^:volatile-mutable value thread]
   :defaults [AVMutable])
@@ -48,7 +49,9 @@
 (defn unbound? [v]
   (instance? UnboundVar v))
 
-(declare thread-bound? get-thread-binding)
+(declare thread-bound?)
+
+(def ^Frame dynamic-vals (make-frame))
 
 (defn ^ThreadBox get-thread-binding [var]
   (when (thread-bound? var)
@@ -75,7 +78,8 @@
       :name sym
       :ns ns
       :root root
-      :meta (-meta this))
+      :meta (-meta this)
+      not-found))
     
   IVar
   (-bind-root [this new-root]
@@ -125,8 +129,6 @@
     (locking this
       (set! meta (assoc m :name sym :ns ns)))))
 
-(def ^Frame dynamic-vals (make-frame))
-
 (defn thread-bound? [^Var var]
   (pos? (.get ^AtomicInteger (.thread-bound-depth var))))
 
@@ -159,7 +161,7 @@
     (if rest
       (do (when-not (:dynamic (-meta var))
             (throw (IllegalStateException. (str "Can't dynamically bind non-dynamic var: "
-                                                (.ns var) "/" (.sym var)))))
+                                                (:ns var) "/" (:name var)))))
           (-validate var val)
           (.incrementAndGet ^AtomicInteger (.thread-bound-depth var))
           (recur (first rest) (next rest) (assoc bindings var (ThreadBox. (Thread/currentThread) val))))
