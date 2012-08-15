@@ -1,6 +1,6 @@
 (ns clojure.lang.ns
   (:refer-clojure :exclude [*ns* intern find-ns ns-aliases ns-unalias the-ns ns-map ns-resolve deftype])
-  (:require [clojure.lang.commons :refer [*ns* default-aliases]]
+  (:require [clojure.lang.commons :refer [*ns* warning default-aliases]]
             [clojure.lang.traits :refer [AReference]]
             [clojure.lang.protocols :refer :all]
             [clojure.lang.var :refer [create-var]]
@@ -64,9 +64,8 @@
                    (= ns (the-ns 'clojure.core)))
         (throw (IllegalStateException.
                 (str sym " already refers to:" o " in namespace: " (:name this))))))
-    (binding [*out* *err*]
-      (println "WARNING: " sym " already refers to:" o " in namespace: " (:name this)
-               ", being replaced by: " v))))
+    (warning {} sym " already refers to:" o " in namespace: " (:name this)
+             ", being replaced by: " v)))
 
 (defn set-namespace [name ns]
   (swap! namespaces assoc name ns))

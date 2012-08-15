@@ -12,7 +12,7 @@
   (:refer-clojure :exclude [macroexpand-1 *ns* the-ns])
   (:require [clojure.java.io :as io]
             [clojure.string :as string]
-            [clojure.lang.commons :refer [*ns*]]
+            [clojure.lang.commons :refer [*ns* warning]]
             [clojure.lang.ns :refer [namespaces the-ns ns-alias]]))
 
 (do
@@ -23,17 +23,6 @@
 
 (defn empty-env []
   {:ns (the-ns *ns*) :context :statement :locals {}})
-
-(defmacro ^:private debug-prn
-  [& args]
-  `(binding [*out* *err*]
-     (println (str ~@args))))
-
-(defn warning [env & s]
-  (debug-prn
-   "WARNING: " (apply str s)
-   (when (:line env)
-     (str " at line " (:line env) " " *file*))))
 
 (defn confirm-var-exists [env ns sym]
   (when *warn-on-undeclared*

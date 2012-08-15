@@ -5,6 +5,17 @@
 
 (defonce ^:dynamic *ns* 'user)
 
+(defmacro ^:private debug-prn
+  [& args]
+  `(binding [*out* *err*]
+     (println ~@args)))
+
+(defn warning [env & s]
+  (debug-prn
+   "WARNING: " (apply str s)
+   (when (:line env)
+     (str " at line " (:line env) " " *file*))))
+
 (def default-aliases
   '{Boolean                         java.lang.Boolean
     Byte                            java.lang.Byte
