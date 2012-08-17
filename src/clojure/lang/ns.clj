@@ -46,7 +46,7 @@
          (do
            (when o 
              (warn-or-fail-on-replace this sym o v))
-           ((swap! (:mappings this) assoc sym v) v))))))
+           ((swap! (:mappings this) assoc sym v) sym))))))
 
 (defn make-ns [name]
   (Namespace. name (atom {}) (atom default-aliases) nil))
