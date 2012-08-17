@@ -75,3 +75,6 @@
 (defprotocol INamed
   (-name [o])
   (-namespace [o]))
+
+(defprotocol ILookup
+  (-lookup [o k] [o k not-found])) ;;valAt in java
