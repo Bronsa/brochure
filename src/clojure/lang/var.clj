@@ -80,7 +80,13 @@
       :root root
       :meta (-meta this)
       not-found))
-    
+  
+  INamed
+  (-name [this]
+    (name sym))
+  (-namespace [this]
+    (name (:name ns)))
+  
   IVar
   (-bind-root [this new-root]
     (locking this

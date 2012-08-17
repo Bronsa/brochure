@@ -31,7 +31,7 @@
       :aliases aliases
       :meta (-meta this)
       not-found))
-
+  
   INamespace
   (-intern-sym [this sym]
     (refer this sym (create-var this sym) true)))

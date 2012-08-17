@@ -71,3 +71,7 @@
   (-bind-root [var root])
   (-alter-root [var fn args])
   (-get-raw-root [var]))
+
+(defprotocol INamed
+  (-name [o])
+  (-namespace [o]))
