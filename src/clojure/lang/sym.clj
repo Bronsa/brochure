@@ -1,7 +1,7 @@
 (set! *warn-on-reflection* true)
 
 (ns clojure.lang.sym
-  (:refer-clojure :exclude [deftype intern hash-combine])
+  (:refer-clojure :exclude [deftype symbol hash-combine])
   (:require [clojure.lang.protocols :refer :all]
             [clojure.lang.traits :refer [AFn gen-invoke]]
             [clojure.lang.utils :refer [hash-code hash-combine]]
@@ -43,7 +43,7 @@
       _str
       (set! _str (if ns (.intern (str ns "/" name)) (.intern name)))))
   (equals [this o]
-    (or (= this o)
+    (or (identical? this o)
         (and (instance? Symbol o)
              (= (-name o) name)
              (= (-namespace o) ns))))
@@ -71,7 +71,9 @@
                            (hash-code ns))]
     (Symbol. ns name hash meta nil)))
 
-(defn intern [^String ns ^String name]
-  (make-sym (and ns (.intern ns))
-            (.intern name)
-            nil))
+(defn symbol
+  ([name] (symbol nil name))
+  ([^String ns ^String name]
+     (make-sym (and ns (.intern ns))
+               (.intern name)
+               nil)))

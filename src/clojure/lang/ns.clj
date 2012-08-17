@@ -2,14 +2,15 @@
 
 (ns clojure.lang.ns
   (:refer-clojure :exclude [*ns* intern find-ns ns-aliases ns-unalias the-ns ns-map ns-resolve
-                            deftype refer intern remove-ns])
+                            deftype refer intern remove-ns symbol])
   (:require [clojure.lang.commons :refer [warning default-aliases]]
             [clojure.lang.traits :refer [AReference]]
             [clojure.lang.protocols :refer :all]
             [clojure.lang.var :refer [create-var intern]]
+            [clojure.lang.sym :refer [symbol]]
             [brochure.def :refer [deftype]])
   (:import java.util.concurrent.ConcurrentHashMap
-           (clojure.lang RT ILookup
+           (clojure.lang RT
                          var.Var)))
 
 (declare ns-map warn-or-fail-on-replace refer *ns*)
@@ -21,7 +22,7 @@
   Object
   (toString [this] (str name))
 
-  ILookup
+  clojure.lang.ILookup
   (valAt [this k]
     (.valAt this k nil))
   (valAt [this k not-found]
@@ -39,7 +40,7 @@
 (defn refer
   ([sym v] (refer *ns* sym v))
   ([this sym v & [intern?]]
-     (when (namespace sym)
+     (when (-namespace sym)
        (throw (IllegalArgumentException. "Can't intern namespace-qualified symbol")))
      (let [o ((ns-map (:name this)) sym)]
        (if (and o (if intern? (= o v) (= (:ns o) this)))
@@ -50,6 +51,8 @@
            ((swap! (:mappings this) assoc sym v) sym))))))
 
 (defn make-ns [name]
+  (if (-namespace name)
+    (throw (IllegalArgumentException. "Can't create a namespace out of a namespace-qualified symbol"))) ;; this is legal in clojure-jvm
   (Namespace. name (atom {}) (atom default-aliases) nil))
 
 (defonce ^ConcurrentHashMap ^:private namespaces (ConcurrentHashMap.))
@@ -61,10 +64,17 @@
   (if-let [ns (find-ns name)]
     ns
     (let [new-ns (make-ns name)]
-      (.putIfAbsent namespaces  name new-ns))))
+      (.putIfAbsent namespaces name new-ns)
+      new-ns)))
 
-(find-or-create 'clojure.core)
-(find-or-create 'user)
+(defonce clojure-core-sym (symbol "clojure.core"))
+(defonce user-sym (symbol "user"))
+(defonce *ns*-sym (symbol "*ns*"))
+(defonce in-ns-sym (symbol "in-ns"))
+(defonce ns-sym (symbol "ns"))
+
+(find-or-create clojure-core-sym)
+(find-or-create user-sym)
 
 (defn the-ns [ns]
   (if (instance? Namespace ns)
@@ -76,7 +86,7 @@
   (if (instance? Var o)
     (let [ns (:ns o)]
       (if-not (and (= ns this)
-                   (= ns (the-ns 'clojure.core)))
+                   (= ns (the-ns clojure-core-sym)))
         (throw (IllegalStateException.
                 (str sym " already refers to:" o " in namespace: " (:name this))))))
     (warning {} sym " already refers to:" o " in namespace: " (:name this)
@@ -91,9 +101,9 @@
 (defn ns-map [ns]
   @(:mappings (the-ns ns)))
 
-(when-not ((ns-map 'clojure.core) '*ns*)
-  (intern (the-ns 'clojure.core) '*ns* (the-ns 'user))
-  (def *ns* ((ns-map 'clojure.core) '*ns*))
+(when-not ((ns-map clojure-core-sym) *ns*-sym)
+  (intern (the-ns clojure-core-sym) *ns*-sym (the-ns user-sym))
+  (def *ns* ((ns-map clojure-core-sym) *ns*-sym))
   (-reset-meta! *ns* {:dynamic true}))
 
 (defn ns-unalias [ns sym]
@@ -118,20 +128,20 @@
                   (= ns (:name (:ns o))))
          o))))
 
-(defonce ns-var (intern (the-ns 'clojure.core) 'ns false))
-(defonce in-ns-var (intern (the-ns 'clojure.core) 'in-ns false))
+(defonce ns-var (intern (the-ns clojure-core-sym) ns-sym false))
+(defonce in-ns-var (intern (the-ns clojure-core-sym) in-ns-sym false))
 
 (defn maybe-resolve [ns sym]
-  (if-not (nil? (namespace sym))
+  (if-not (nil? (-namespace sym))
     (when-let [ns (resolve-ns ns sym)]
-      (find-interned-var ns (symbol (name sym))))
-    (if (or (and (pos? (-> sym name (.indexOf ".")))
-                 (not  (-> sym name (.endsWith "."))))
-            (= \[ (-> sym name (.charAt 0))))
-      (RT/classForName (name sym))
-      (if (= sym 'ns)
+      (find-interned-var ns (symbol (-name sym))))
+    (if (or (and (pos? (-> sym -name (.indexOf ".")))
+                 (not  (-> sym -name (.endsWith "."))))
+            (= \[ (-> sym -name (.charAt 0))))
+      (RT/classForName (-name sym))
+      (if (= sym ns-sym)
         ns-var
-        (if (= sym 'in-ns)
+        (if (= sym in-ns-sym)
           in-ns-var
           ((ns-map ns) sym))))))
 
@@ -152,7 +162,7 @@
      (let [n (.getName c)]
        (import-class (symbol (.substring n (inc (.lastIndexOf n ".")))))))
   ([this sym v]
-     (when (namespace sym)
+     (when (-namespace sym)
        (throw (IllegalArgumentException. "Can't intern namespace-qualified symbol")))
      (let [c ((ns-map this) sym)
            c (or (when (or (not c) (different-instances-of-same-class-name? c v))
@@ -164,7 +174,7 @@
                  (str sym " already refers to: " c " in namespace " (:name this))))))))
 
 (defn remove-ns [name]
-  (if (= name 'clojure.core)
+  (if (= name clojure-core-sym)
     (throw (IllegalArgumentException. "Cannot remove clojure.core"))
     (.remove namespaces name)))
 

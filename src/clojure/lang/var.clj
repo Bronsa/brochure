@@ -2,13 +2,13 @@
 
 (ns clojure.lang.var
   (:refer-clojure :exclude [deftype atom swap! thread-bound? bound? get-thread-bindings
-                            push-thread-bindings pop-thread-bindings intern])
+                            push-thread-bindings pop-thread-bindings intern symbol])
   (:require [clojure.lang.protocols :refer :all]
             [clojure.lang.traits :refer [AReference AWatchable AValidable AFn AVMutable gen-invoke]]
             [clojure.lang.atom :refer [atom swap!]]
+            [clojure.lang.sym :refer [symbol]]
             [brochure.def :refer [deftype]])
-  (:import java.util.concurrent.atomic.AtomicInteger
-           clojure.lang.ILookup))
+  (:import java.util.concurrent.atomic.AtomicInteger))
 
 (deftype ThreadBox [^:volatile-mutable value thread]
   :defaults [AVMutable])
@@ -70,7 +70,7 @@
 
   :defaults [AReference AWatchable AValidable AFn VarFn]
   
-  ILookup
+  clojure.lang.ILookup
   (valAt [this k]
     (.valAt this k nil))
   (valAt [this k not-found]
@@ -83,9 +83,9 @@
   
   INamed
   (-name [this]
-    (name sym))
+    (-name sym))
   (-namespace [this]
-    (name (:name ns)))
+    (-name (:name ns)))
   
   IVar
   (-bind-root [this new-root]
