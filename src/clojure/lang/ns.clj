@@ -8,7 +8,8 @@
             [clojure.lang.protocols :refer :all]
             [clojure.lang.var :refer [create-var intern]]
             [brochure.def :refer [deftype]])
-  (:import (clojure.lang RT ILookup
+  (:import java.util.concurrent.ConcurrentHashMap
+           (clojure.lang RT ILookup
                          var.Var)))
 
 (declare ns-map warn-or-fail-on-replace refer *ns*)
@@ -46,17 +47,24 @@
          (do
            (when o 
              (warn-or-fail-on-replace this sym o v))
-           ((swap! (:mappings this) assoc sym v) v))))))
+           ((swap! (:mappings this) assoc sym v) sym))))))
 
 (defn make-ns [name]
   (Namespace. name (atom {}) (atom default-aliases) nil))
 
-;; ConcurrentHashMap
-(defonce namespaces (atom {'clojure.core (make-ns 'clojure.core)
-                           'user         (make-ns 'user)}))
+(defonce ^ConcurrentHashMap namespaces (ConcurrentHashMap.))
 
 (defn find-ns [ns]
-  (@namespaces ns))
+  (.get namespaces ns))
+
+(defn find-or-create [name]
+  (if-let [ns (find-ns name)]
+    ns
+    (let [new-ns (make-ns name)]
+      (.putIfAbsent namespaces  name new-ns))))
+
+(find-or-create 'clojure.core)
+(find-or-create 'user)
 
 (defn the-ns [ns]
   (if (instance? Namespace ns)
@@ -75,7 +83,7 @@
              ", being replaced by: " v)))
 
 (defn set-namespace [name ns]
-  ((swap! namespaces assoc name ns) name))
+  (.put namespaces  name ns))
 
 (defn ns-aliases [ns]
   @(:aliases (the-ns ns)))
@@ -155,19 +163,10 @@
          (throw (IllegalStateException.
                  (str sym " already refers to: " c " in namespace " (:name this))))))))
 
-(defn find-or-create [name]
-  (if-let [ns (find-ns name)]
-    ns
-    (let [new-ns (make-ns name)]
-      ((swap! namespaces #(if (contains? % %2)
-                            %2
-                            (assoc % %2 %3)) name new-ns) name))))
-
 (defn remove-ns [name]
   (if (= name 'clojure.core)
     (throw (IllegalArgumentException. "Cannot remove clojure.core"))
-    (swap! namespaces dissoc name)))
-
+    (.remove namespaces name)))
 
 (defn find-interned-var
   ([sym] (find-interned-var *ns* sym))
