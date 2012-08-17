@@ -52,7 +52,7 @@
 (defn make-ns [name]
   (Namespace. name (atom {}) (atom default-aliases) nil))
 
-(defonce ^ConcurrentHashMap namespaces (ConcurrentHashMap.))
+(defonce ^ConcurrentHashMap ^:private namespaces (ConcurrentHashMap.))
 
 (defn find-ns [ns]
   (.get namespaces ns))
