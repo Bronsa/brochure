@@ -14,7 +14,7 @@
 
 (declare ns-map warn-or-fail-on-replace refer *ns*)
 
-(deftype Namespace [name mappings aliases ^:unsynchronized-mutable meta]
+(deftype Namespace [#_Symbol name mappings aliases ^:unsynchronized-mutable meta]
 
   :defaults [AReference]
   

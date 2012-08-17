@@ -24,7 +24,7 @@
       (str "#'" (:name ns) "/" sym)
       (str "#<Var: " (if sym sym "--unnamed--") ">")))
 
-(deftype UnboundVar [ns sym]
+(deftype UnboundVar [#_Namespace ns #_Symbol sym]
 
   :defaults [AFn UnboundFn]
 
@@ -61,7 +61,7 @@
   (cons []
     (gen-invoke '-invoke '(-deref this))))
 
-(deftype Var [sym ns
+(deftype Var [#_Symbol sym #_Namespace ns
               ^AtomicInteger thread-bound-depth
               ^:volatile-mutable root
               ^:unsynchronized-mutable meta
