@@ -1,7 +1,9 @@
+(set! *warn-on-reflection* true)
+
 (ns clojure.lang.utils
   (:refer-clojure :exclude [hash-combine]))
 
-(defn hash-code [o]
+(defn hash-code [^Object o]
   (if (nil? o) 0
       (.hashCode o)))
 
