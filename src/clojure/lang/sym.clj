@@ -41,7 +41,7 @@
   (toString [this] ;;toString caching
     (if _str
       _str
-      (set! _str ((if ns (.intern (str ns "/" name)) (.intern name))))))
+      (set! _str (if ns (.intern (str ns "/" name)) (.intern name)))))
   (equals [this o]
     (or (= this o)
         (and (instance? Symbol o)
@@ -66,9 +66,10 @@
               (and (not (zero? nsc)) nsc)))
           (.compareTo name (-name o))))))
 
-(defn make-sym [ns name meta]
-  (Symbol. ns name (hash-combine (.hashCode name)
-                                 (hash-code ns)) meta nil))
+(defn make-sym [ns ^String name meta]
+  (let [hash (hash-combine (.hashCode name)
+                           (hash-code ns))]
+    (Symbol. ns name hash meta nil)))
 
 (defn intern [^String ns ^String name]
   (make-sym (and ns (.intern ns))
