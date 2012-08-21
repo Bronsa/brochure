@@ -1,7 +1,7 @@
 (set! *warn-on-reflection* true)
 
 (ns clojure.lang.kw
-  (:refer-clojure :exclude [deftype symbol intern find])
+  (:refer-clojure :exclude [deftype symbol intern find keyword keyword?])
   (:require [clojure.lang.protocols :refer :all]
             [clojure.lang.sym :refer [symbol]]
             [clojure.lang.utils :refer [clear-cache]]
@@ -76,6 +76,12 @@
                    (intern sym)))
              k)))))
   ([ns name] (intern (symbol ns name))))
+
+(defn keyword? [o] (instance? Keyword o))
+
+(defn keyword
+  ([sym] (if (keyword? sym) sym (intern sym)))
+  ([ns name] (intern ns name)))
 
 (defn find
   ([sym]
