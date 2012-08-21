@@ -13,7 +13,8 @@
 (deftype ThreadBox [^:volatile-mutable value thread]
   :defaults [AVMutable])
 
-(declare throw-arity)
+(defn throw-arity [this & _]
+  (throw (IllegalStateException. (str "Attempting to call unbound fn:" this))))
 
 (def UnboundFn
   (cons []
@@ -42,9 +43,6 @@
 
 (defn clone-frame [^Frame frame]
   (make-frame (.bindings frame)))
-
-(defn throw-arity [^UnboundVar this & _]
-  (throw (IllegalStateException. (str "Attempting to call unbound fn:" this))))
 
 (defn unbound? [v]
   (instance? UnboundVar v))
