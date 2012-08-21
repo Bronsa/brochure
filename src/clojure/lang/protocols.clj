@@ -78,3 +78,31 @@
 
 (defprotocol ILookup
   (-lookup [o k] [o k not-found])) ;;valAt in java
+
+(defprotocol ICounted
+  (-count [coll] "constant time count"))
+
+(defprotocol IIndexed
+  (-nth [coll n] [coll n not-found]))
+
+(defprotocol ISeq
+  (-first [coll])
+  (-next [coll]))
+
+(defprotocol IIndexedSeq
+  (-index [seq]))
+
+(defprotocol IEquiv
+  (-equiv [o other]))
+
+(defprotocol IHash
+  (-hash [o])) ;; hasheq in java
+
+(defprotocol ISeqable
+  (-seq [o]))
+
+(defprotocol IEmptyableCollection
+  (-empty [coll]))
+
+(defprotocol ICollection
+  (-conj [coll o]))
