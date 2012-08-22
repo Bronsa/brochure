@@ -67,11 +67,6 @@
 (defprotocol INamespace
   (-intern-sym [ns sym]))
 
-(defprotocol IVar
-  (-bind-root [var root])
-  (-alter-root [var fn args])
-  (-get-raw-root [var]))
-
 (defprotocol INamed
   (-name [o])
   (-namespace [o]))

@@ -59,6 +59,11 @@
   (cons []
     (gen-invoke '-invoke '(-deref this))))
 
+(defprotocol IVar
+  (-bind-root [var root])
+  (-alter-root [var fn args])
+  (-get-raw-root [var]))
+
 (deftype Var [#_Symbol sym #_Namespace ns
               ^AtomicInteger thread-bound-depth
               ^:volatile-mutable root
