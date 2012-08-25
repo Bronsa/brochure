@@ -1,7 +1,7 @@
 (set! *warn-on-reflection* true)
 
 (ns clojure.lang.utils
-  (:refer-clojure :exclude [hash-combine hash count to-array])
+  (:refer-clojure :exclude [hash-combine hash count])
   (:require [clojure.lang.protocols :refer :all])
   (:import java.util.Map$Entry
            java.util.concurrent.ConcurrentHashMap
@@ -100,16 +100,16 @@
     (instance? java.util.Map coll)
     (.size ^java.util.Map coll)
       
-    (-> coll .getClass .isArray)
-    (alength coll)
+    (-> ^Object coll .getClass .isArray)
+    (alength ^objects coll)
     
     :else
     (throw (UnsupportedOperationException.
             (str "count not supported on this type: "
-                 (-> coll .getClass .getSimpleName))))))
+                 (-> ^Object coll .getClass .getSimpleName))))))
 
 
-(defn reify-seq ^java.util.List [seq]
+(defn reify-seq ^java.util.List [^java.util.List seq]
   (java.util.Collections/unmodifiableList (java.util.ArrayList. seq)))
 
 (defn unsigned-bit-shift-right
@@ -127,23 +127,23 @@
       (recur (dec c))))
   to-array)
 
-(defn to-array
+(defn seq-to-array
   ([this]
-     (let [o (object-array (-count this))]
+     (let [o (object-array (count this))]
        (loop [curr (-seq this) i 0]
          (when curr
            (aset o i (-first curr))
            (recur (-next curr) (inc i))))
        o))
-  ([this a]
-     (let [len (-count this)
-          o (if (> len (.length a))
-              (java.lang.reflect.Array/newInstance (-> a .getClass .getComponentType) len)
-              a)]
-      (loop [curr (-seq this) i 0]
-        (when curr
-          (aset o i (-first curr))
-          (recur (-next curr) (inc i))))
-      (when (< len (.lenght a))
-        (aset o len nil))
-      o)))
+  ([this ^objects a]
+     (let [len (count this)
+           ^objects o (if (> len (alength a))
+                        (java.lang.reflect.Array/newInstance (-> a .getClass .getComponentType) ^int len)
+                        a)]
+       (loop [curr (-seq this) i 0]
+         (when curr
+           (aset o i (-first curr))
+           (recur (-next curr) (inc i))))
+       (when (< len (alength a))
+         (aset o len nil))
+       o)))
