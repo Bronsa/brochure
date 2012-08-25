@@ -2,7 +2,8 @@
 
 (ns clojure.lang.traits
   (:require [brochure.def :refer [deftrait]]
-            [clojure.lang.protocols :refer :all]))
+            [clojure.lang.protocols :refer :all]
+            [clojure.lang.utils])) ;; ensure it's loaded
 
 (deftrait AReference [^:unsynchronized-mutable meta]
   IMeta
@@ -68,8 +69,106 @@
                        (eval `(-invoke ~this ~@(take 19 arglist) '~(drop 19 arglist)))))))
          (gen-invoke `throw-arity 'this))))
 
-
 (deftrait AVMutable [^:volatile-mutable value]
   IMutableField
   (set-field! [this new-val] (set! value new-val))
   (get-field [this] value))
+
+(defmacro eq? [fn]
+  `(and (or (satisfies? ISequential obj)
+            (instance? java.util.List obj))
+         (loop [ms (-seq obj) s (-seq this)]
+           (if-not (nil? ms)
+             (if (not (and (nil? ms)
+                           (~fn (-first this) (-first ms))))
+               (recur (-next ms) (-next s)))
+             (nil? ms)))))
+
+
+
+(deftrait ASeq [hash meta]
+  
+  ISeq
+  (-first [_] first)
+  (-next [_] next)
+
+  IHash
+  (-hash [this]
+    (clojure.lang.utils/seqable-hash-code this))
+
+  IEmptyableCollection
+  (-empty [_] clojure.lang.persistent-list/empty)
+
+  ISeqable
+  (-seq [this] this)
+  
+  IPersistentCollection
+  (-conj [this o]
+    (clojure.lang.persistent-list.Cons. o this))
+
+  Object
+  (hashCode [this]
+    (clojure.lang.utils/seqable-hash-code this)) ;; s/hash/hash-code
+  
+  (equals [this obj]
+    (eq? clojure.lang.utils/equals?))
+
+  IEquiv
+  (-equiv [this obj]
+    (eq? clojure.lang.utils/equiv?))
+
+  IMeta
+  (-meta [_] meta)
+  
+  java.util.List
+  (contains [this o]
+            (boolean (loop [s (-seq this)]
+                       (when s
+                         (if (clojure.lang.utils/equiv? (-first s) o)
+                           true
+                           (recur (-next s)))))))
+  ;; (containsAll [this c])
+  ;; (get [this index] (nth this index))
+  (indexOf [this o]
+           (loop [coll this i 0]
+             (if (-seq coll)
+               (or (when (clojure.lang.utils/equiv? o (-first coll)) i)
+                   (recur (-next coll) (inc i)))
+               -1)))
+  (isEmpty [this]
+           (nil? (-seq this)))
+  (iterator [this]
+            (SeqIterator. this))
+  (lastIndexOf [this o]
+               (.lastIndexOf (clojure.lang.utils/reify-seq this) o))
+  (listIterator [this]
+                (.listIterator (clojure.lang.utils/reify-seq this)))
+  (listIterator [this index]
+                (.listIterator (clojure.lang.utils/reify-seq this) index))
+  (size [this] (clojure.lang.utils/count this))
+  (subList [this fromIndex toIndex]
+           (.subList (clojure.lang.utils/reify-seq this) fromIndex toIndex))
+  (toArray [this]
+           (clojure.lang.utils/seq-to-array this))
+  (toArray [this a]
+           (clojure.lang.utils/seq-to-array this a))
+  (add [_ o]
+       (throw (UnsupportedOperationException.)))
+  (add [_ index element]
+       (throw (UnsupportedOperationException.)))
+  (addAll [_ c]
+          (throw (UnsupportedOperationException.)))
+  (addAll [_ index c]
+          (throw (UnsupportedOperationException.)))
+  (clear [_]
+         (throw (UnsupportedOperationException.)))
+  (remove [_ ^int index]
+          (throw (UnsupportedOperationException.)))
+  (^boolean remove [_ o]
+            (throw (UnsupportedOperationException.)))
+  (removeAll [_ c]
+             (throw (UnsupportedOperationException.)))
+  (retainAll [_ c]
+             (throw (UnsupportedOperationException.)))
+  (set [this index element]
+       (throw (UnsupportedOperationException.))))
