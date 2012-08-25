@@ -99,5 +99,5 @@
 (defprotocol IEmptyableCollection
   (-empty [coll]))
 
-(defprotocol ICollection
+(defprotocol IPersistentCollection
   (-conj [coll o]))
