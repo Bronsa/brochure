@@ -5,9 +5,8 @@
   (:require [clojure.lang.runtime :refer [*ns*]]
             [clojure.lang.ns :refer [resolve-ns ns-map the-ns maybe-resolve]])
   (:import (clojure.lang BigInt Numbers PersistentHashMap PersistentHashSet IMeta ISeq
-                         RT IReference Symbol IPersistentList Reflector Symbol Keyword IObj
-                         PersistentVector IPersistentCollection IRecord
-                         var.Var)
+                         RT IReference Symbol IPersistentList Reflector Var Symbol Keyword IObj
+                         PersistentVector IPersistentCollection IRecord)
            (java.util ArrayList regex.Pattern regex.Matcher)
            java.lang.reflect.Constructor))
 
@@ -660,8 +659,8 @@
         (if (instance? Class o)
           (symbol (.getName ^Class o))
           (if (instance? Var o)
-            (symbol (-> o :ns :name name) (-> o :name name))))
-        (symbol (name (:name *ns*)) (name s))))))
+            (symbol (-> ^Var o .ns .name name) (-> ^Var o .sym name))))
+        (symbol (:name *ns*) (name s))))))
 
 (defn syntax-quote [form]
   (cond
