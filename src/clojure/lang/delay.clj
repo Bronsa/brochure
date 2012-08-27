@@ -5,12 +5,11 @@
 
   IDeref
   (-deref [this]
-    (when f
-      (locking this
-        (when f
-          (set! val (f))
-          (set! f nil))))
-    val)
+    (locking this
+     (when f
+       (set! val (f))
+       (set! f nil))
+     val))
 
   IPending
   (-realized? [this]
