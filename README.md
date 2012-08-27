@@ -1,6 +1,7 @@
 # brochure
 
 A re-implementation of clojure in clojure
+An experiment.
 
 ## License
 
