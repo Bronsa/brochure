@@ -14,6 +14,8 @@
   (-reset-meta! [this m]
     (locking this (set! meta m))))
 
+;; not going to work.
+;; we need to implement our own doseq, assoc, dissoc
 (deftrait AWatchable [^:volatile-mutable watches]
   IWatchable
   (-notify-watches [this old-value new-value]

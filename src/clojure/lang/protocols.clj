@@ -101,3 +101,10 @@
 
 (defprotocol IPersistentCollection
   (-conj [coll o]))
+
+(defprotocol IAssociative
+  (-contains-key? [coll k])
+  (-assoc [coll k v]))
+
+(defprotocol IMap
+    (-dissoc [coll k]))

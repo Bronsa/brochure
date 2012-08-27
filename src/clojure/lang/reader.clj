@@ -831,7 +831,6 @@
   (read (push-back-reader s) true nil false))
 
 (comment
-
  (def l (slurp "/home/bronsa/src/clojure/src/clj/clojure/core.clj"))
 
  (defn bench [] (let [pl (pbr l)] (loop [r (read pl true nil true)]
@@ -841,5 +840,4 @@
  (defn bench- [] (let [pl (java.io.PushbackReader. (java.io.StringReader. l))]
                    (loop [r (clojure.core/read pl true nil true)]
                      (if r (recur (try (clojure.core/read pl true nil true)
-                                       (catch Exception _)))))))
- )
+                                       (catch Exception _))))))))
