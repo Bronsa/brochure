@@ -21,7 +21,7 @@
      '(-invoke [this obj]
                (if (instance? ILookup)
                      (-lookup obj this)
-                     (get obj this)))
+                     (get obj this))) ;;
      '(-invoke [this obj not-found]
                (if (instance? ILookup)
                  (-lookup obj this not-found)

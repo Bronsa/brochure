@@ -84,8 +84,6 @@
                (recur (-next ms) (-next s)))
              (nil? ms)))))
 
-
-
 (deftrait ASeq [hash meta]
   
   ISeq
