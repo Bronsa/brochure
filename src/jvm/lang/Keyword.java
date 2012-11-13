@@ -89,7 +89,7 @@ public final class Keyword implements I.Fn, Comparable, I.Named, Serializable {
 
     //A.Fn.throwArity
     public Object throwArity(int n){
-        throw new I.llegalArgumentException("Wrong number of args: " n",  passed to keyword: " + toString());
+        throw new IllegalArgumentException("Wrong number of args: " n ",  passed to keyword: " + toString());
     }
 
     public Object call() {
